@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Net.Http.Json;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -55,7 +54,7 @@ internal static class Program
 
 internal sealed class FocusListForm : Form
 {
-    private const int HeaderHeight = 64;
+    private const int HeaderHeight = 38;
     private const int CollapsedHeight = HeaderHeight;
     private const int ResizeGrip = 7;
     private const int WmNcHitTest = 0x0084;
@@ -72,15 +71,11 @@ internal sealed class FocusListForm : Form
 
     private readonly EventWaitHandle _activationEvent;
     private readonly System.Windows.Forms.Timer _activationTimer = new() { Interval = 300 };
-    private readonly System.Windows.Forms.Timer _summaryTimer = new() { Interval = 2500 };
     private readonly Panel _header = new();
-    private readonly Label _titleLabel = new();
-    private readonly Label _summaryLabel = new();
     private readonly Button _pinButton = new();
     private readonly Button _collapseButton = new();
     private readonly Button _closeButton = new();
     private readonly WebView2 _webView = new();
-    private readonly HttpClient _httpClient = new() { Timeout = TimeSpan.FromSeconds(3) };
     private readonly string _statePath;
     private Process? _serverProcess;
     private Uri? _serverBaseUri;
@@ -112,6 +107,7 @@ internal sealed class FocusListForm : Form
         ConfigureWebView();
         LoadWindowState();
         ApplyWindowState();
+        ApplyWindowRegion();
 
         HandleCreated += (_, _) => Program.Log($"Form.HandleCreated: {Handle}");
         HandleDestroyed += (_, _) => Program.Log($"Form.HandleDestroyed");
@@ -119,9 +115,9 @@ internal sealed class FocusListForm : Form
         _webView.HandleDestroyed += (_, _) => Program.Log($"_webView.HandleDestroyed");
 
         _activationTimer.Tick += (_, _) => ActivateIfRequested();
-        _summaryTimer.Tick += (_, _) => _ = RefreshSummaryAsync();
         Move += (_, _) => SaveWindowState();
         ResizeEnd += (_, _) => SaveWindowState();
+        Resize += (_, _) => ApplyWindowRegion();
         FormClosing += OnFormClosing;
         Shown += (_, _) => _ = InitializeAsync();
     }
@@ -134,22 +130,6 @@ internal sealed class FocusListForm : Form
         _header.Cursor = Cursors.SizeAll;
         _header.MouseDown += BeginNativeDrag;
         _header.Paint += PaintHeader;
-
-        _titleLabel.AutoEllipsis = true;
-        _titleLabel.ForeColor = Color.FromArgb(15, 23, 42);
-        _titleLabel.Font = new Font("Microsoft YaHei UI", 10f, FontStyle.Bold);
-        _titleLabel.Text = "焦点清单";
-        _titleLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _titleLabel.Cursor = Cursors.SizeAll;
-        _titleLabel.MouseDown += BeginNativeDrag;
-
-        _summaryLabel.AutoEllipsis = true;
-        _summaryLabel.ForeColor = Color.FromArgb(100, 116, 139);
-        _summaryLabel.Font = new Font("Microsoft YaHei UI", 8f, FontStyle.Regular);
-        _summaryLabel.Text = "今日 0 · 本周 0";
-        _summaryLabel.TextAlign = ContentAlignment.MiddleLeft;
-        _summaryLabel.Cursor = Cursors.SizeAll;
-        _summaryLabel.MouseDown += BeginNativeDrag;
 
         ConfigureHeaderButton(_pinButton, "置顶", "切换置顶或普通窗口层级");
         ConfigureHeaderButton(_collapseButton, "—", "收拢窗口");
@@ -177,8 +157,6 @@ internal sealed class FocusListForm : Form
         _collapseButton.Click += (_, _) => ToggleCollapsed();
         _closeButton.Click += (_, _) => Close();
 
-        _header.Controls.Add(_titleLabel);
-        _header.Controls.Add(_summaryLabel);
         _header.Controls.Add(_pinButton);
         _header.Controls.Add(_collapseButton);
         _header.Controls.Add(_closeButton);
@@ -206,37 +184,21 @@ internal sealed class FocusListForm : Form
 
     private void LayoutHeader()
     {
-        const int buttonSize = 30;
-        const int buttonY = 17;
-        const int buttonGap = 6;
-        const int rightInset = 14;
-        const int pinWidth = 48;
+        const int buttonSize = 28;
+        const int buttonY = 5;
+        const int buttonGap = 4;
+        const int rightInset = 8;
+        const int pinWidth = 42;
         _closeButton.SetBounds(_header.ClientSize.Width - buttonSize - rightInset, buttonY, buttonSize, buttonSize);
         _collapseButton.SetBounds(_closeButton.Left - buttonSize - buttonGap, buttonY, buttonSize, buttonSize);
         _pinButton.SetBounds(_collapseButton.Left - pinWidth - buttonGap, buttonY, pinWidth, buttonSize);
-        _titleLabel.SetBounds(60, 10, Math.Max(76, _pinButton.Left - 68), 24);
-        _summaryLabel.SetBounds(60, 32, Math.Max(76, _pinButton.Left - 68), 20);
-        ApplyRoundedRegion(_pinButton, 12);
-        ApplyRoundedRegion(_collapseButton, 12);
-        ApplyRoundedRegion(_closeButton, 12);
+        ApplyRoundedRegion(_pinButton, 10);
+        ApplyRoundedRegion(_collapseButton, 10);
+        ApplyRoundedRegion(_closeButton, 10);
     }
 
     private void PaintHeader(object? sender, PaintEventArgs eventArgs)
     {
-        eventArgs.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        using var iconPath = CreateRoundedRectangle(new Rectangle(16, 16, 32, 32), 11);
-        using var iconBrush = new SolidBrush(Color.FromArgb(232, 240, 255));
-        eventArgs.Graphics.FillPath(iconBrush, iconPath);
-        using var innerPath = CreateRoundedRectangle(new Rectangle(24, 24, 16, 16), 5);
-        using var innerBrush = new SolidBrush(Color.FromArgb(37, 99, 235));
-        eventArgs.Graphics.FillPath(innerBrush, innerPath);
-        using var checkPen = new Pen(Color.White, 1.8f)
-        {
-            StartCap = System.Drawing.Drawing2D.LineCap.Round,
-            EndCap = System.Drawing.Drawing2D.LineCap.Round,
-            LineJoin = System.Drawing.Drawing2D.LineJoin.Round,
-        };
-        eventArgs.Graphics.DrawLines(checkPen, [new Point(28, 32), new Point(31, 35), new Point(36, 29)]);
         using var pen = new Pen(Color.FromArgb(231, 235, 242), 1);
         eventArgs.Graphics.DrawLine(pen, 0, _header.Height - 1, _header.Width, _header.Height - 1);
     }
@@ -278,6 +240,15 @@ internal sealed class FocusListForm : Form
     {
         using var path = CreateRoundedRectangle(control.ClientRectangle, radius);
         control.Region = new Region(path);
+    }
+
+    private void ApplyWindowRegion()
+    {
+        if (ClientSize.Width < 2 || ClientSize.Height < 2) return;
+        using var path = CreateRoundedRectangle(ClientRectangle, 22);
+        var previous = Region;
+        Region = new Region(path);
+        previous?.Dispose();
     }
 
     private static System.Drawing.Drawing2D.GraphicsPath CreateRoundedRectangle(Rectangle bounds, int radius)
@@ -327,13 +298,11 @@ internal sealed class FocusListForm : Form
             _webView.Source = new Uri($"{_serverBaseUri}?token={Uri.EscapeDataString(_serverToken)}");
 
             _activationTimer.Start();
-            _summaryTimer.Start();
-            await RefreshSummaryAsync();
         }
         catch (Exception error)
         {
             Program.Log($"InitializeAsync error: {error}");
-            _titleLabel.Text = "焦点清单 · 启动失败";
+            Text = "焦点清单 · 启动失败";
             MessageBox.Show(
                 this,
                 $"焦点清单无法启动：\n{error.Message}",
@@ -404,36 +373,6 @@ internal sealed class FocusListForm : Form
         browser.NewWindowRequested += (_, eventArgs) => eventArgs.Handled = true;
         browser.PermissionRequested += (_, eventArgs) => eventArgs.State = CoreWebView2PermissionState.Deny;
         browser.DownloadStarting += (_, eventArgs) => eventArgs.Cancel = true;
-    }
-
-    private async Task RefreshSummaryAsync()
-    {
-        if (_serverBaseUri is null || string.IsNullOrWhiteSpace(_serverToken) || _closing || IsDisposed) return;
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, new Uri(_serverBaseUri, "api/snapshot"));
-            request.Headers.Add("X-Focus-List-Token", _serverToken);
-            using var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode) return;
-            var snapshot = await response.Content.ReadFromJsonAsync<JsonElement>();
-            if (!snapshot.TryGetProperty("counts", out var counts)) return;
-            var today = counts.TryGetProperty("today", out var todayProp) ? todayProp.GetInt32() : 0;
-            var week = counts.TryGetProperty("week", out var weekProp) ? weekProp.GetInt32() : 0;
-            if (!_closing && !IsDisposed && IsHandleCreated)
-            {
-                BeginInvoke(() =>
-                {
-                    if (!_closing && !IsDisposed && IsHandleCreated)
-                    {
-                        _summaryLabel.Text = $"今日 {today} · 本周 {week}";
-                    }
-                });
-            }
-        }
-        catch
-        {
-            // Summary refresh is best-effort; the Web UI shows actionable errors.
-        }
     }
 
     private void BeginNativeDrag(object? sender, MouseEventArgs eventArgs)
@@ -595,8 +534,6 @@ internal sealed class FocusListForm : Form
         SaveWindowState();
         _closing = true;
         _activationTimer.Stop();
-        _summaryTimer.Stop();
-        _httpClient.Dispose();
         try
         {
             if (_serverProcess is { HasExited: false }) _serverProcess.Kill(entireProcessTree: true);

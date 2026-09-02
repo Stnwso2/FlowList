@@ -82,7 +82,7 @@
     .shell {
       width: 100%;
       min-height: 100vh;
-      padding: 16px 14px 24px;
+      padding: 12px 14px 24px;
       max-width: 640px;
       margin: 0 auto;
     }
@@ -223,7 +223,7 @@
     .composer input[type="text"]:focus {
       background: #ffffff;
       border-color: var(--primary);
-      box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--line-focus);
+      box-shadow: none;
     }
 
     .add-btn {
@@ -287,7 +287,7 @@
       box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--line-focus);
     }
 
-    .opt-pill input[type="date"], .opt-pill select {
+    .opt-pill input[type="date"] {
       border: 0;
       background: transparent;
       outline: 0;
@@ -297,9 +297,67 @@
       padding: 0;
     }
 
-    .opt-pill select {
-      appearance: none;
-      padding-right: 2px;
+    .priority-picker {
+      position: relative;
+      z-index: 20;
+    }
+
+    .priority-trigger {
+      min-width: 92px;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .priority-trigger:focus-within,
+    .priority-trigger:focus-visible {
+      border-color: var(--primary);
+      box-shadow: none;
+    }
+
+    .priority-trigger svg:last-child {
+      transition: transform var(--duration) var(--ease);
+    }
+
+    .priority-picker.open .priority-trigger {
+      border-color: var(--primary);
+      box-shadow: none;
+    }
+
+    .priority-picker.open .priority-trigger svg:last-child {
+      transform: rotate(180deg);
+    }
+
+    .priority-menu {
+      position: absolute;
+      top: calc(100% + 7px);
+      left: 0;
+      min-width: 112px;
+      padding: 5px;
+      border: 1px solid var(--line-glass);
+      border-radius: 14px;
+      background: #ffffff;
+      box-shadow: var(--shadow-md);
+      display: grid;
+      gap: 2px;
+    }
+
+    .priority-menu[hidden] { display: none; }
+
+    .priority-option {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 9px;
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      text-align: left;
+    }
+
+    .priority-option:hover, .priority-option.selected {
+      background: var(--primary-soft);
+      color: var(--primary-text);
+    }
+
+    .priority-option.selected { font-weight: 600; }
     }
 
     /* 标签导航：悬浮按钮之间保留呼吸感，不再承托在一整块底板上 */
@@ -697,7 +755,7 @@
       display: grid;
     }
 
-    .editor input, .editor select, .editor textarea {
+    .editor input, .editor textarea {
       width: 100%;
       border: 1px solid var(--line-border);
       border-radius: 14px;
@@ -709,7 +767,7 @@
       transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
     }
 
-    .editor input:focus, .editor select:focus, .editor textarea:focus {
+    .editor input:focus, .editor textarea:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px var(--line-focus);
     }
@@ -720,10 +778,28 @@
       line-height: 1.4;
     }
 
-    .editor-row {
+    .editor-row { display: grid; gap: 8px; }
+
+    .editor-priority {
       display: grid;
-      grid-template-columns: 1fr 96px;
-      gap: 8px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .editor-priority-option {
+      min-height: 30px;
+      border: 1px solid var(--line-border);
+      border-radius: 11px;
+      background: #ffffff;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .editor-priority-option.selected {
+      border-color: var(--primary-border);
+      background: var(--primary-soft);
+      color: var(--primary-text);
+      font-weight: 600;
     }
 
     .editor-btn-row {
@@ -875,29 +951,6 @@
 </head>
 <body>
   <main class="shell">
-    <!-- 顶部状态概览 -->
-    <div class="top-status-bar">
-      <div class="focus-mark" aria-hidden="true">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="4" y="4" width="16" height="16" rx="4"></rect>
-          <path d="m8.5 12 2.2 2.2 4.8-4.8"></path>
-        </svg>
-      </div>
-      <div class="status-left">
-        <span class="status-kicker">Today's focus</span>
-        <span class="status-date" id="dateLabel">今日聚焦</span>
-      </div>
-      <div class="status-side">
-        <div class="progress-track" title="完成进度">
-          <div class="progress-fill" id="progressBar"></div>
-        </div>
-        <span class="status-percent" id="progressPercent">0%</span>
-        <div class="status-pill">
-          待办 <strong id="todayCount">0</strong>
-        </div>
-      </div>
-    </div>
-
     <!-- 任务创建栏 -->
     <form class="composer" id="composer">
       <div class="composer-input-row">
@@ -919,16 +972,21 @@
           </svg>
           <input id="newDate" type="date" aria-label="截止日期">
         </label>
-        <label class="opt-pill" title="优先级">
+        <div class="priority-picker" id="priorityPicker">
+          <input id="newPriority" type="hidden" value="normal">
+          <button class="opt-pill priority-trigger" id="priorityTrigger" type="button" aria-label="优先级" aria-expanded="false" aria-controls="priorityMenu">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
           </svg>
-          <select id="newPriority" aria-label="优先级">
-            <option value="normal">普通</option>
-            <option value="high">优先</option>
-            <option value="low">低优先</option>
-          </select>
-        </label>
+            <span id="priorityText">普通</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="priority-menu" id="priorityMenu" role="listbox" aria-label="选择优先级" hidden>
+            <button class="priority-option selected" type="button" data-priority="normal" role="option" aria-selected="true">普通</button>
+            <button class="priority-option" type="button" data-priority="high" role="option" aria-selected="false">优先</button>
+            <button class="priority-option" type="button" data-priority="low" role="option" aria-selected="false">低优先</button>
+          </div>
+        </div>
       </div>
     </form>
 
@@ -963,11 +1021,10 @@
     const titleInput = document.querySelector("#newTitle");
     const dateInput = document.querySelector("#newDate");
     const priorityInput = document.querySelector("#newPriority");
-    const progressBar = document.querySelector("#progressBar");
-    const progressPercent = document.querySelector("#progressPercent");
-
-    const dateFormatter = new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "short" });
-    document.querySelector("#dateLabel").textContent = dateFormatter.format(new Date());
+    const priorityPicker = document.querySelector("#priorityPicker");
+    const priorityTrigger = document.querySelector("#priorityTrigger");
+    const priorityMenu = document.querySelector("#priorityMenu");
+    const priorityText = document.querySelector("#priorityText");
 
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>'"]/g, character => ({
@@ -1019,13 +1076,20 @@
       return "node-normal";
     }
 
-    function updateProgress() {
-      if (!state.snapshot || !state.snapshot.tasks) return;
-      const total = state.snapshot.tasks.length;
-      const done = state.snapshot.tasks.filter(t => t.completed).length;
-      const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-      if (progressBar) progressBar.style.width = `${pct}%`;
-      if (progressPercent) progressPercent.textContent = `${pct}% (${done}/${total})`;
+    function setComposerPriority(priority) {
+      priorityInput.value = priority;
+      priorityText.textContent = priorityLabel(priority);
+      priorityMenu.querySelectorAll(".priority-option").forEach(option => {
+        const selected = option.dataset.priority === priority;
+        option.classList.toggle("selected", selected);
+        option.setAttribute("aria-selected", String(selected));
+      });
+    }
+
+    function closePriorityPicker() {
+      priorityPicker.classList.remove("open");
+      priorityTrigger.setAttribute("aria-expanded", "false");
+      priorityMenu.hidden = true;
     }
 
     function taskMarkup(task) {
@@ -1075,11 +1139,12 @@
               <input name="title" maxlength="240" value="${escapeHtml(task.title)}" placeholder="任务标题" required aria-label="任务标题">
               <div class="editor-row">
                 <input name="dueDate" type="date" value="${task.dueDate || ""}" aria-label="截止日期">
-                <select name="priority" aria-label="优先级">
-                  <option value="normal" ${task.priority === "normal" ? "selected" : ""}>普通</option>
-                  <option value="high" ${task.priority === "high" ? "selected" : ""}>优先</option>
-                  <option value="low" ${task.priority === "low" ? "selected" : ""}>低优先</option>
-                </select>
+                <div class="editor-priority" role="group" aria-label="优先级">
+                  <input name="priority" type="hidden" value="${task.priority}">
+                  <button class="editor-priority-option ${task.priority === "normal" ? "selected" : ""}" type="button" data-priority="normal">普通</button>
+                  <button class="editor-priority-option ${task.priority === "high" ? "selected" : ""}" type="button" data-priority="high">优先</button>
+                  <button class="editor-priority-option ${task.priority === "low" ? "selected" : ""}" type="button" data-priority="low">低优先</button>
+                </div>
               </div>
               <textarea name="note" maxlength="4000" placeholder="添加备注或说明（可选）">${escapeHtml(task.note)}</textarea>
               <div class="editor-btn-row">
@@ -1093,14 +1158,11 @@
 
     function render() {
       if (!state.snapshot) return;
-      document.querySelector("#todayCount").textContent = state.snapshot.counts.today;
       for (const [scope, count] of Object.entries(state.snapshot.counts)) {
         const target = document.querySelector(`[data-count="${scope}"]`);
         if (target) target.textContent = count;
       }
       document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.scope === state.activeScope));
-      updateProgress();
-
       const tasks = state.snapshot.groups[state.activeScope] || [];
       if (tasks.length === 0) {
         let emptyTitle = "全部任务已完成";
@@ -1173,6 +1235,30 @@
       }
     });
 
+    priorityTrigger.addEventListener("click", event => {
+      event.stopPropagation();
+      const opening = priorityMenu.hidden;
+      priorityPicker.classList.toggle("open", opening);
+      priorityTrigger.setAttribute("aria-expanded", String(opening));
+      priorityMenu.hidden = !opening;
+    });
+
+    priorityMenu.addEventListener("click", event => {
+      const option = event.target.closest(".priority-option");
+      if (!option) return;
+      setComposerPriority(option.dataset.priority);
+      closePriorityPicker();
+      titleInput.focus();
+    });
+
+    document.addEventListener("click", event => {
+      if (!priorityPicker.contains(event.target)) closePriorityPicker();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape") closePriorityPicker();
+    });
+
     document.querySelector(".tabs").addEventListener("click", event => {
       const tab = event.target.closest(".tab");
       if (!tab) return;
@@ -1198,6 +1284,16 @@
           await refresh({ force: true });
         } catch (error) { showToast(error, true); }
         finally { state.busy = false; }
+        return;
+      }
+
+      const editorPriority = event.target.closest(".editor-priority-option");
+      if (editorPriority) {
+        const editor = editorPriority.closest(".editor");
+        editor.querySelector('input[name="priority"]').value = editorPriority.dataset.priority;
+        editor.querySelectorAll(".editor-priority-option").forEach(option => {
+          option.classList.toggle("selected", option === editorPriority);
+        });
         return;
       }
 

@@ -13,6 +13,8 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /BeginNativeDrag/);
   assert.match(source, /SaveWindowState/);
   assert.match(source, /FocusListFloatingWindow/);
+  assert.match(source, /ApplyWindowRegion/);
+  assert.match(source, /CreateRoundedRectangle\(ClientRectangle, 22\)/);
 });
 
 test("web UI contains planning, history, and CRUD interactions", async () => {
@@ -21,6 +23,9 @@ test("web UI contains planning, history, and CRUD interactions", async () => {
     assert.match(page, new RegExp(`data-scope="${scope}"`));
   }
   assert.doesNotMatch(page, /写下一件要完成的事/);
+  assert.doesNotMatch(page, /Today&#39;s focus|Today's focus/);
+  assert.match(page, /priority-picker/);
+  assert.doesNotMatch(page, /<select/);
   assert.match(page, /method: "POST"/);
   assert.match(page, /method: "PATCH"/);
   assert.match(page, /method: "DELETE"/);
