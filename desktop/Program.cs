@@ -218,13 +218,11 @@ internal sealed class FocusListForm : Form
         _compactPanel.Dock = DockStyle.Fill;
         _compactPanel.BackColor = Color.FromArgb(238, 244, 253);
         _compactPanel.Visible = false;
-        _compactPanel.Cursor = Cursors.Hand;
+        _compactPanel.Cursor = Cursors.SizeAll;
         _compactPanel.TabStop = true;
+        _compactPanel.AccessibleName = "拖动缩略窗口";
         _compactPanel.Paint += (_, eventArgs) => PaintCompactPanel(eventArgs.Graphics);
-        _compactPanel.MouseClick += (_, eventArgs) =>
-        {
-            if (eventArgs.Button == MouseButtons.Left) ToggleCollapsed();
-        };
+        _compactPanel.MouseDown += BeginNativeDrag;
 
         ConfigureCompactButton(_compactTopmostButton, "compactTopmostButton", "切换置顶", new Point(82, 14), CompactButtonKind.Topmost);
         _compactTopmostButton.Click += (_, _) =>

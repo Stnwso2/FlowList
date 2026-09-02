@@ -26,6 +26,8 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /CompactHeight = 64/);
   assert.match(source, /new Size\(36, 36\)/);
   assert.match(source, /ConfigureCompactPanel/);
+  assert.match(source, /_compactPanel\.MouseDown \+= BeginNativeDrag/);
+  assert.doesNotMatch(source, /_compactPanel\.MouseClick/);
   assert.match(source, /ApplyCompactVisualState/);
   assert.match(source, /_webView\.Visible = false/);
   assert.match(source, /expandedWidth = _expandedWidth/);
