@@ -54,8 +54,8 @@ internal static class Program
 
 internal sealed class FocusListForm : Form
 {
-    private const int CompactWidth = 176;
-    private const int CompactHeight = 56;
+    private const int CompactWidth = 208;
+    private const int CompactHeight = 64;
     private const int ResizeGrip = 7;
     private const int WmNcHitTest = 0x0084;
     private const int WmSysCommand = 0x0112;
@@ -226,7 +226,7 @@ internal sealed class FocusListForm : Form
             if (eventArgs.Button == MouseButtons.Left) ToggleCollapsed();
         };
 
-        ConfigureCompactButton(_compactTopmostButton, "compactTopmostButton", "切换置顶", new Point(76, 13), CompactButtonKind.Topmost);
+        ConfigureCompactButton(_compactTopmostButton, "compactTopmostButton", "切换置顶", new Point(82, 14), CompactButtonKind.Topmost);
         _compactTopmostButton.Click += (_, _) =>
         {
             TopMost = !TopMost;
@@ -235,10 +235,10 @@ internal sealed class FocusListForm : Form
             PublishWindowState();
         };
 
-        ConfigureCompactButton(_compactExpandButton, "compactExpandButton", "展开任务清单", new Point(110, 13), CompactButtonKind.Expand);
+        ConfigureCompactButton(_compactExpandButton, "compactExpandButton", "展开任务清单", new Point(124, 14), CompactButtonKind.Expand);
         _compactExpandButton.Click += (_, _) => ToggleCollapsed();
 
-        ConfigureCompactButton(_compactCloseButton, "compactCloseButton", "关闭焦点清单", new Point(144, 13), CompactButtonKind.Close);
+        ConfigureCompactButton(_compactCloseButton, "compactCloseButton", "关闭焦点清单", new Point(166, 14), CompactButtonKind.Close);
         _compactCloseButton.Click += (_, _) => Close();
 
         _compactPanel.Controls.Add(_compactTopmostButton);
@@ -265,11 +265,11 @@ internal sealed class FocusListForm : Form
         button.FlatAppearance.BorderSize = 0;
         button.UseVisualStyleBackColor = false;
         button.BackColor = Color.FromArgb(238, 244, 253);
-        button.Size = new Size(28, 30);
+        button.Size = new Size(36, 36);
         button.Location = location;
         button.Padding = Padding.Empty;
         button.Cursor = Cursors.Hand;
-        using var buttonPath = CreateRoundedRectangle(new Rectangle(0, 0, 28, 30), 12);
+        using var buttonPath = CreateRoundedRectangle(new Rectangle(0, 0, 36, 36), 14);
         button.Region = new Region(buttonPath);
         button.Paint += (_, eventArgs) => PaintCompactButton(eventArgs.Graphics, kind, button.ClientSize);
     }
@@ -281,11 +281,11 @@ internal sealed class FocusListForm : Form
         var active = kind is CompactButtonKind.Topmost or CompactButtonKind.Expand;
         using var fill = new SolidBrush(active ? Color.FromArgb(239, 246, 255) : Color.FromArgb(248, 251, 255));
         using var border = new Pen(active ? Color.FromArgb(191, 219, 254) : Color.FromArgb(203, 213, 225), 1f);
-        using var path = CreateRoundedRectangle(bounds, 12);
+        using var path = CreateRoundedRectangle(bounds, 14);
         graphics.FillPath(fill, path);
         graphics.DrawPath(border, path);
 
-        using var iconPen = new Pen(active ? Color.FromArgb(37, 99, 235) : Color.FromArgb(100, 116, 139), 1.35f)
+        using var iconPen = new Pen(active ? Color.FromArgb(37, 99, 235) : Color.FromArgb(100, 116, 139), 1.8f)
         {
             StartCap = System.Drawing.Drawing2D.LineCap.Round,
             EndCap = System.Drawing.Drawing2D.LineCap.Round,
@@ -293,21 +293,21 @@ internal sealed class FocusListForm : Form
         };
         if (kind == CompactButtonKind.Topmost)
         {
-            graphics.DrawLine(iconPen, new Point(14, 22), new Point(14, 8));
-            graphics.DrawLine(iconPen, new Point(9, 13), new Point(14, 8));
-            graphics.DrawLine(iconPen, new Point(19, 13), new Point(14, 8));
-            graphics.DrawLine(iconPen, new Point(8, 22), new Point(20, 22));
+            graphics.DrawLine(iconPen, new Point(18, 27), new Point(18, 9));
+            graphics.DrawLine(iconPen, new Point(12, 15), new Point(18, 9));
+            graphics.DrawLine(iconPen, new Point(24, 15), new Point(18, 9));
+            graphics.DrawLine(iconPen, new Point(11, 27), new Point(25, 27));
         }
         else if (kind == CompactButtonKind.Expand)
         {
-            graphics.DrawLine(iconPen, new Point(9, 20), new Point(19, 10));
-            graphics.DrawLine(iconPen, new Point(13, 10), new Point(19, 10));
-            graphics.DrawLine(iconPen, new Point(19, 10), new Point(19, 16));
+            graphics.DrawLine(iconPen, new Point(11, 25), new Point(25, 11));
+            graphics.DrawLine(iconPen, new Point(17, 11), new Point(25, 11));
+            graphics.DrawLine(iconPen, new Point(25, 11), new Point(25, 19));
         }
         else
         {
-            graphics.DrawLine(iconPen, new Point(9, 9), new Point(19, 21));
-            graphics.DrawLine(iconPen, new Point(19, 9), new Point(9, 21));
+            graphics.DrawLine(iconPen, new Point(11, 11), new Point(25, 25));
+            graphics.DrawLine(iconPen, new Point(25, 11), new Point(11, 25));
         }
     }
 
@@ -315,7 +315,7 @@ internal sealed class FocusListForm : Form
     {
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var dragBrush = new SolidBrush(Color.FromArgb(148, 163, 184));
-        using var dragPath = CreateRoundedRectangle(new Rectangle(14, 26, 20, 3), 2);
+        using var dragPath = CreateRoundedRectangle(new Rectangle(16, 31, 24, 3), 2);
         graphics.FillPath(dragBrush, dragPath);
     }
 

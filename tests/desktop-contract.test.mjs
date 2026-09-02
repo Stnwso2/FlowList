@@ -22,8 +22,9 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /BeginNativeDragFromWeb/);
   assert.match(source, /DefaultBackgroundColor = Color\.FromArgb\(238, 244, 253\)/);
   assert.doesNotMatch(source, /Opacity = 0\.98/);
-  assert.match(source, /CompactWidth = 176/);
-  assert.match(source, /CompactHeight = 56/);
+  assert.match(source, /CompactWidth = 208/);
+  assert.match(source, /CompactHeight = 64/);
+  assert.match(source, /new Size\(36, 36\)/);
   assert.match(source, /ConfigureCompactPanel/);
   assert.match(source, /ApplyCompactVisualState/);
   assert.match(source, /_webView\.Visible = false/);
