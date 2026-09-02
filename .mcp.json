@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "focus-list": {
+      "command": "node",
+      "args": ["./mcp/server.mjs"],
+      "cwd": "."
+    }
+  }
+}
