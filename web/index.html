@@ -8,11 +8,11 @@
   <style>
     :root {
       color-scheme: light;
-      --bg-canvas: #ffffff;
-      --bg-glass: #ffffff;
-      --bg-glass-hover: #ffffff;
-      --bg-glass-active: #edf4ff;
-      --bg-input: #ffffff;
+      --bg-canvas: rgba(238, 244, 253, 0.78);
+      --bg-glass: rgba(255, 255, 255, 0.62);
+      --bg-glass-hover: rgba(255, 255, 255, 0.82);
+      --bg-glass-active: rgba(232, 240, 255, 0.82);
+      --bg-input: rgba(255, 255, 255, 0.72);
       
       --text-main: #0f172a;
       --text-secondary: #475569;
@@ -63,14 +63,18 @@
       height: 100%;
       overflow-y: scroll;
       scrollbar-gutter: stable;
-      background: var(--bg-canvas);
+      background: transparent;
     }
     body {
       width: 100%;
       min-height: 100%;
       margin: 0;
       overflow-x: hidden;
-      background: var(--bg-canvas);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(219, 234, 254, 0.62), transparent 36%),
+        linear-gradient(145deg, rgba(248, 250, 255, 0.8), var(--bg-canvas));
+      backdrop-filter: blur(20px) saturate(125%);
+      -webkit-backdrop-filter: blur(20px) saturate(125%);
       color: var(--text-main);
       font-size: 13px;
       line-height: 1.5;
@@ -82,9 +86,70 @@
     .shell {
       width: 100%;
       min-height: 100vh;
-      padding: 12px 14px 24px;
+      padding: 10px 14px 24px;
       max-width: 640px;
       margin: 0 auto;
+    }
+
+    .window-toolbar {
+      display: flex;
+      align-items: center;
+      min-height: 28px;
+      margin: 0 2px 8px;
+    }
+
+    .window-drag-surface {
+      flex: 1;
+      align-self: stretch;
+      cursor: grab;
+      touch-action: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .window-drag-surface:active { cursor: grabbing; }
+
+    .window-drag-mark {
+      width: 20px;
+      height: 3px;
+      border-radius: var(--radius-full);
+      background: rgba(100, 116, 139, 0.38);
+    }
+
+    .window-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .window-action {
+      width: 28px;
+      height: 28px;
+      border: 1px solid rgba(203, 213, 225, 0.76);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.46);
+      color: var(--text-muted);
+      display: grid;
+      place-items: center;
+      transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+    }
+
+    .window-action:hover {
+      background: rgba(255, 255, 255, 0.88);
+      border-color: var(--line-border);
+      color: var(--text-main);
+    }
+
+    .window-action.active {
+      border-color: var(--primary-border);
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+
+    .window-action.close-window:hover {
+      border-color: var(--danger-border);
+      background: var(--danger-soft);
+      color: var(--danger);
     }
 
     /* 顶部精简状态条 Top Status Bar */
@@ -191,6 +256,8 @@
       border-radius: var(--radius-xl);
       padding: 12px;
       box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(18px) saturate(125%);
+      -webkit-backdrop-filter: blur(18px) saturate(125%);
       margin-bottom: 14px;
       display: grid;
       gap: 8px;
@@ -521,16 +588,18 @@
 
     /* 任务卡片 Card (透光玻璃质感) */
     .task-card {
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.62);
       border: 1px solid var(--line-glass);
       border-radius: 18px;
       box-shadow: var(--shadow-sm);
       overflow: hidden;
+      backdrop-filter: blur(18px) saturate(125%);
+      -webkit-backdrop-filter: blur(18px) saturate(125%);
       transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease), background-color var(--duration) var(--ease), transform var(--duration) var(--ease);
     }
 
     .task-card:hover {
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.82);
       border-color: var(--line-border);
       box-shadow: var(--shadow-md);
       transform: translateY(-1px);
@@ -951,6 +1020,23 @@
 </head>
 <body>
   <main class="shell">
+    <div class="window-toolbar" aria-label="窗口控制">
+      <button class="window-drag-surface" id="windowDragSurface" type="button" aria-label="拖动悬浮窗" title="拖动悬浮窗">
+        <span class="window-drag-mark" aria-hidden="true"></span>
+      </button>
+      <div class="window-actions">
+        <button class="window-action active" type="button" data-window-action="topmost" aria-label="切换置顶" title="切换置顶" aria-pressed="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4h6"></path><path d="m12 4 4 6v3H8v-3l4-6Z"></path><path d="M12 13v7"></path></svg>
+        </button>
+        <button class="window-action" type="button" data-window-action="collapse" aria-label="收拢窗口" title="收拢窗口">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg>
+        </button>
+        <button class="window-action close-window" type="button" data-window-action="close" aria-label="关闭焦点清单" title="关闭焦点清单">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"></path></svg>
+        </button>
+      </div>
+    </div>
+
     <!-- 任务创建栏 -->
     <form class="composer" id="composer">
       <div class="composer-input-row">
@@ -1025,6 +1111,8 @@
     const priorityTrigger = document.querySelector("#priorityTrigger");
     const priorityMenu = document.querySelector("#priorityMenu");
     const priorityText = document.querySelector("#priorityText");
+    const desktopBridge = window.chrome?.webview;
+    const dragSurface = document.querySelector("#windowDragSurface");
 
     function escapeHtml(value) {
       return String(value ?? "").replace(/[&<>'"]/g, character => ({
@@ -1091,6 +1179,40 @@
       priorityTrigger.setAttribute("aria-expanded", "false");
       priorityMenu.hidden = true;
     }
+
+    function postWindowAction(action, event = {}) {
+      desktopBridge?.postMessage({
+        type: "window-action",
+        action,
+        screenX: Math.round(event.screenX || 0),
+        screenY: Math.round(event.screenY || 0),
+      });
+    }
+
+    function updateWindowControls(windowState) {
+      const topmostButton = document.querySelector('[data-window-action="topmost"]');
+      const collapseButton = document.querySelector('[data-window-action="collapse"]');
+      const topmost = Boolean(windowState?.topmost);
+      const collapsed = Boolean(windowState?.collapsed);
+      topmostButton.classList.toggle("active", topmost);
+      topmostButton.setAttribute("aria-pressed", String(topmost));
+      collapseButton.setAttribute("aria-label", collapsed ? "展开窗口" : "收拢窗口");
+      collapseButton.title = collapsed ? "展开窗口" : "收拢窗口";
+    }
+
+    desktopBridge?.addEventListener("message", event => {
+      if (event.data?.type === "window-state") updateWindowControls(event.data);
+    });
+
+    dragSurface.addEventListener("pointerdown", event => {
+      if (event.button !== 0) return;
+      postWindowAction("drag", event);
+    });
+
+    document.querySelector(".window-actions").addEventListener("click", event => {
+      const button = event.target.closest("[data-window-action]");
+      if (button) postWindowAction(button.dataset.windowAction, event);
+    });
 
     function taskMarkup(task) {
       const editing = state.editingId === task.id;

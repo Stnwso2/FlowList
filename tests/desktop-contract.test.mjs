@@ -15,6 +15,10 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /FocusListFloatingWindow/);
   assert.match(source, /ApplyWindowRegion/);
   assert.match(source, /CreateRoundedRectangle\(ClientRectangle, 22\)/);
+  assert.match(source, /WebMessageReceived/);
+  assert.match(source, /PostWebMessageAsJson/);
+  assert.match(source, /BeginNativeDragFromWeb/);
+  assert.match(source, /Opacity = 0\.98/);
 });
 
 test("web UI contains planning, history, and CRUD interactions", async () => {
@@ -26,6 +30,10 @@ test("web UI contains planning, history, and CRUD interactions", async () => {
   assert.doesNotMatch(page, /Today&#39;s focus|Today's focus/);
   assert.match(page, /priority-picker/);
   assert.doesNotMatch(page, /<select/);
+  assert.match(page, /window-toolbar/);
+  assert.match(page, /data-window-action="topmost"/);
+  assert.match(page, /data-window-action="collapse"/);
+  assert.match(page, /data-window-action="close"/);
   assert.match(page, /method: "POST"/);
   assert.match(page, /method: "PATCH"/);
   assert.match(page, /method: "DELETE"/);

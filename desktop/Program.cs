@@ -54,8 +54,7 @@ internal static class Program
 
 internal sealed class FocusListForm : Form
 {
-    private const int HeaderHeight = 38;
-    private const int CollapsedHeight = HeaderHeight;
+    private const int CollapsedHeight = 48;
     private const int ResizeGrip = 7;
     private const int WmNcHitTest = 0x0084;
     private const int WmNcLButtonDown = 0x00A1;
@@ -71,10 +70,6 @@ internal sealed class FocusListForm : Form
 
     private readonly EventWaitHandle _activationEvent;
     private readonly System.Windows.Forms.Timer _activationTimer = new() { Interval = 300 };
-    private readonly Panel _header = new();
-    private readonly Button _pinButton = new();
-    private readonly Button _collapseButton = new();
-    private readonly Button _closeButton = new();
     private readonly WebView2 _webView = new();
     private readonly string _statePath;
     private Process? _serverProcess;
@@ -93,7 +88,8 @@ internal sealed class FocusListForm : Form
         StartPosition = FormStartPosition.Manual;
         ShowInTaskbar = true;
         TopMost = true;
-        BackColor = Color.White;
+        BackColor = Color.FromArgb(238, 244, 253);
+        Opacity = 0.98;
         MinimumSize = new Size(320, 420);
         Size = new Size(380, 640);
 
@@ -103,7 +99,6 @@ internal sealed class FocusListForm : Form
         Directory.CreateDirectory(dataDirectory);
         _statePath = Path.Combine(dataDirectory, "window.json");
 
-        ConfigureHeader();
         ConfigureWebView();
         LoadWindowState();
         ApplyWindowState();
@@ -120,87 +115,6 @@ internal sealed class FocusListForm : Form
         Resize += (_, _) => ApplyWindowRegion();
         FormClosing += OnFormClosing;
         Shown += (_, _) => _ = InitializeAsync();
-    }
-
-    private void ConfigureHeader()
-    {
-        _header.Dock = DockStyle.Top;
-        _header.Height = HeaderHeight;
-        _header.BackColor = Color.White;
-        _header.Cursor = Cursors.SizeAll;
-        _header.MouseDown += BeginNativeDrag;
-        _header.Paint += PaintHeader;
-
-        ConfigureHeaderButton(_pinButton, "置顶", "切换置顶或普通窗口层级");
-        ConfigureHeaderButton(_collapseButton, "—", "收拢窗口");
-        ConfigureHeaderButton(_closeButton, "×", "关闭焦点清单");
-
-        _closeButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(254, 226, 226);
-        _closeButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(254, 202, 202);
-        _closeButton.MouseEnter += (_, _) =>
-        {
-            _closeButton.ForeColor = Color.FromArgb(220, 38, 38);
-            _closeButton.FlatAppearance.BorderColor = Color.FromArgb(254, 202, 202);
-        };
-        _closeButton.MouseLeave += (_, _) =>
-        {
-            _closeButton.ForeColor = Color.FromArgb(100, 116, 139);
-            _closeButton.FlatAppearance.BorderColor = Color.FromArgb(226, 232, 240);
-        };
-
-        _pinButton.Click += (_, _) =>
-        {
-            TopMost = !TopMost;
-            UpdatePinButton();
-            SaveWindowState();
-        };
-        _collapseButton.Click += (_, _) => ToggleCollapsed();
-        _closeButton.Click += (_, _) => Close();
-
-        _header.Controls.Add(_pinButton);
-        _header.Controls.Add(_collapseButton);
-        _header.Controls.Add(_closeButton);
-        _header.Resize += (_, _) => LayoutHeader();
-        Controls.Add(_header);
-        LayoutHeader();
-        UpdatePinButton();
-    }
-
-    private static void ConfigureHeaderButton(Button button, string text, string accessibleName)
-    {
-        button.Text = text;
-        button.AccessibleName = accessibleName;
-        button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 0;
-        button.FlatAppearance.MouseOverBackColor = Color.FromArgb(241, 245, 249);
-        button.FlatAppearance.MouseDownBackColor = Color.FromArgb(226, 232, 240);
-        button.BackColor = Color.FromArgb(255, 255, 255);
-        button.ForeColor = Color.FromArgb(100, 116, 139);
-        button.Font = new Font("Microsoft YaHei UI", 8f, FontStyle.Regular);
-        button.Cursor = Cursors.Hand;
-        button.TabStop = false;
-        button.UseVisualStyleBackColor = false;
-    }
-
-    private void LayoutHeader()
-    {
-        const int buttonSize = 28;
-        const int buttonY = 5;
-        const int buttonGap = 4;
-        const int rightInset = 8;
-        const int pinWidth = 42;
-        _closeButton.SetBounds(_header.ClientSize.Width - buttonSize - rightInset, buttonY, buttonSize, buttonSize);
-        _collapseButton.SetBounds(_closeButton.Left - buttonSize - buttonGap, buttonY, buttonSize, buttonSize);
-        _pinButton.SetBounds(_collapseButton.Left - pinWidth - buttonGap, buttonY, pinWidth, buttonSize);
-        ApplyRoundedRegion(_pinButton, 10);
-        ApplyRoundedRegion(_collapseButton, 10);
-        ApplyRoundedRegion(_closeButton, 10);
-    }
-
-    private void PaintHeader(object? sender, PaintEventArgs eventArgs)
-    {
-        using var pen = new Pen(Color.FromArgb(231, 235, 242), 1);
-        eventArgs.Graphics.DrawLine(pen, 0, _header.Height - 1, _header.Width, _header.Height - 1);
     }
 
     private static Icon CreateAppIcon()
@@ -236,12 +150,6 @@ internal sealed class FocusListForm : Form
         }
     }
 
-    private static void ApplyRoundedRegion(Control control, int radius)
-    {
-        using var path = CreateRoundedRectangle(control.ClientRectangle, radius);
-        control.Region = new Region(path);
-    }
-
     private void ApplyWindowRegion()
     {
         if (ClientSize.Width < 2 || ClientSize.Height < 2) return;
@@ -265,16 +173,12 @@ internal sealed class FocusListForm : Form
 
     private void ConfigureWebView()
     {
-        // Keep the web surface below the native title area. Dock=Fill caused it to
-        // occupy the entire form and visually run underneath the header controls.
         _webView.Dock = DockStyle.None;
-        _webView.Location = new Point(0, HeaderHeight);
-        _webView.Size = new Size(ClientSize.Width, Math.Max(0, ClientSize.Height - HeaderHeight));
+        _webView.Location = Point.Empty;
+        _webView.Size = ClientSize;
         _webView.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        _webView.DefaultBackgroundColor = Color.White;
+        _webView.DefaultBackgroundColor = Color.FromArgb(238, 244, 253);
         Controls.Add(_webView);
-        _webView.BringToFront();
-        _header.BringToFront();
     }
 
     private async Task InitializeAsync()
@@ -363,7 +267,7 @@ internal sealed class FocusListForm : Form
         return port;
     }
 
-    private static void ConfigureBrowserSecurity(CoreWebView2 browser)
+    private void ConfigureBrowserSecurity(CoreWebView2 browser)
     {
         browser.Settings.AreDevToolsEnabled = false;
         browser.Settings.AreDefaultContextMenusEnabled = false;
@@ -373,11 +277,67 @@ internal sealed class FocusListForm : Form
         browser.NewWindowRequested += (_, eventArgs) => eventArgs.Handled = true;
         browser.PermissionRequested += (_, eventArgs) => eventArgs.State = CoreWebView2PermissionState.Deny;
         browser.DownloadStarting += (_, eventArgs) => eventArgs.Cancel = true;
+        browser.WebMessageReceived += HandleBrowserMessage;
+        browser.NavigationCompleted += (_, _) => PublishWindowState();
+    }
+
+    private void HandleBrowserMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs eventArgs)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(eventArgs.WebMessageAsJson);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("type", out var type) || type.GetString() != "window-action") return;
+            if (!root.TryGetProperty("action", out var action)) return;
+            var actionName = action.GetString();
+            var screenX = root.TryGetProperty("screenX", out var x) ? x.GetInt32() : 0;
+            var screenY = root.TryGetProperty("screenY", out var y) ? y.GetInt32() : 0;
+
+            BeginInvoke(() =>
+            {
+                switch (actionName)
+                {
+                    case "topmost":
+                        TopMost = !TopMost;
+                        SaveWindowState();
+                        PublishWindowState();
+                        break;
+                    case "collapse":
+                        ToggleCollapsed();
+                        break;
+                    case "close":
+                        Close();
+                        break;
+                    case "drag":
+                        BeginNativeDragFromWeb(screenX, screenY);
+                        break;
+                }
+            });
+        }
+        catch
+        {
+            // Ignore malformed browser messages; task access must stay available.
+        }
+    }
+
+    private void PublishWindowState()
+    {
+        if (_webView.CoreWebView2 is null || _closing || IsDisposed) return;
+        var state = JsonSerializer.Serialize(new { type = "window-state", topmost = TopMost, collapsed = _collapsed });
+        _webView.CoreWebView2.PostWebMessageAsJson(state);
     }
 
     private void BeginNativeDrag(object? sender, MouseEventArgs eventArgs)
     {
         if (eventArgs.Button != MouseButtons.Left) return;
+        NativeMethods.ReleaseCapture();
+        NativeMethods.SendMessage(Handle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
+        SaveWindowState();
+    }
+
+    private void BeginNativeDragFromWeb(int screenX, int screenY)
+    {
+        if (screenX != 0 || screenY != 0) NativeMethods.SetCursorPos(screenX, screenY);
         NativeMethods.ReleaseCapture();
         NativeMethods.SendMessage(Handle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
         SaveWindowState();
@@ -390,41 +350,27 @@ internal sealed class FocusListForm : Form
             _collapsed = false;
             Height = Math.Max(_expandedHeight, 420);
             MinimumSize = new Size(320, 420);
-            _collapseButton.Text = "—";
-            _collapseButton.AccessibleName = "收拢窗口";
         }
         else
         {
             _expandedHeight = Math.Max(Height, 420);
             _collapsed = true;
-            MinimumSize = new Size(260, CollapsedHeight);
+            MinimumSize = new Size(220, CollapsedHeight);
             Height = CollapsedHeight;
-            _collapseButton.Text = "□";
-            _collapseButton.AccessibleName = "展开窗口";
         }
         SaveWindowState();
+        PublishWindowState();
     }
 
     private void ApplyWindowState()
     {
-        UpdatePinButton();
+        PublishWindowState();
         if (_collapsed)
         {
-            MinimumSize = new Size(260, CollapsedHeight);
+            MinimumSize = new Size(220, CollapsedHeight);
             Height = CollapsedHeight;
-            _collapseButton.Text = "□";
-            _collapseButton.AccessibleName = "展开窗口";
         }
         Location = ClampToVisibleScreen(Location, Size);
-    }
-
-    private void UpdatePinButton()
-    {
-        _pinButton.Text = TopMost ? "置顶✓" : "置顶";
-        _pinButton.BackColor = TopMost ? Color.FromArgb(239, 246, 255) : Color.FromArgb(255, 255, 255);
-        _pinButton.ForeColor = TopMost ? Color.FromArgb(37, 99, 235) : Color.FromArgb(100, 116, 139);
-        _pinButton.FlatAppearance.BorderColor = TopMost ? Color.FromArgb(191, 219, 254) : Color.FromArgb(226, 232, 240);
-        _pinButton.Font = new Font("Microsoft YaHei UI", 8f, TopMost ? FontStyle.Bold : FontStyle.Regular);
     }
 
     private void ActivateIfRequested()
@@ -558,4 +504,8 @@ internal static partial class NativeMethods
 
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     internal static partial IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool SetCursorPos(int x, int y);
 }
