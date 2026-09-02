@@ -74,7 +74,9 @@ internal sealed class FocusListForm : Form
     private readonly System.Windows.Forms.Timer _activationTimer = new() { Interval = 300 };
     private readonly WebView2 _webView = new();
     private readonly Panel _compactPanel = new();
+    private readonly Button _compactTopmostButton = new();
     private readonly Button _compactExpandButton = new();
+    private readonly Button _compactCloseButton = new();
     private readonly string _statePath;
     private Process? _serverProcess;
     private Uri? _serverBaseUri;
@@ -207,58 +209,106 @@ internal sealed class FocusListForm : Form
     private void ConfigureCompactPanel()
     {
         _compactPanel.Dock = DockStyle.Fill;
-        _compactPanel.BackColor = Color.FromArgb(245, 248, 253);
+        _compactPanel.BackColor = Color.FromArgb(238, 244, 253);
         _compactPanel.Visible = false;
         _compactPanel.Cursor = Cursors.Hand;
+        _compactPanel.TabStop = true;
         _compactPanel.Paint += (_, eventArgs) => PaintCompactPanel(eventArgs.Graphics);
         _compactPanel.MouseClick += (_, eventArgs) =>
         {
             if (eventArgs.Button == MouseButtons.Left) ToggleCollapsed();
         };
 
-        _compactExpandButton.Name = "compactExpandButton";
-        _compactExpandButton.AccessibleName = "展开任务清单";
-        _compactExpandButton.Text = "↗";
-        _compactExpandButton.TabStop = true;
-        _compactExpandButton.FlatStyle = FlatStyle.Flat;
-        _compactExpandButton.FlatAppearance.BorderSize = 0;
-        _compactExpandButton.UseVisualStyleBackColor = false;
-        _compactExpandButton.BackColor = Color.FromArgb(232, 240, 255);
-        _compactExpandButton.ForeColor = Color.FromArgb(37, 99, 235);
-        _compactExpandButton.Font = new Font("Segoe UI", 14, FontStyle.Regular, GraphicsUnit.Pixel);
-        _compactExpandButton.Size = new Size(34, 34);
-        _compactExpandButton.Location = new Point(130, 11);
-        _compactExpandButton.Cursor = Cursors.Hand;
+        ConfigureCompactButton(_compactTopmostButton, "compactTopmostButton", "切换置顶", new Point(76, 13), CompactButtonKind.Topmost);
+        _compactTopmostButton.Click += (_, _) =>
+        {
+            TopMost = !TopMost;
+            SaveWindowState();
+            _compactTopmostButton.Invalidate();
+            PublishWindowState();
+        };
+
+        ConfigureCompactButton(_compactExpandButton, "compactExpandButton", "展开任务清单", new Point(110, 13), CompactButtonKind.Expand);
         _compactExpandButton.Click += (_, _) => ToggleCollapsed();
 
+        ConfigureCompactButton(_compactCloseButton, "compactCloseButton", "关闭焦点清单", new Point(144, 13), CompactButtonKind.Close);
+        _compactCloseButton.Click += (_, _) => Close();
+
+        _compactPanel.Controls.Add(_compactTopmostButton);
         _compactPanel.Controls.Add(_compactExpandButton);
+        _compactPanel.Controls.Add(_compactCloseButton);
         Controls.Add(_compactPanel);
         _compactPanel.BringToFront();
     }
 
-    private void PaintCompactPanel(Graphics graphics)
+    private enum CompactButtonKind
+    {
+        Topmost,
+        Expand,
+        Close,
+    }
+
+    private void ConfigureCompactButton(Button button, string name, string accessibleName, Point location, CompactButtonKind kind)
+    {
+        button.Name = name;
+        button.AccessibleName = accessibleName;
+        button.Text = string.Empty;
+        button.TabStop = false;
+        button.FlatStyle = FlatStyle.Flat;
+        button.FlatAppearance.BorderSize = 0;
+        button.UseVisualStyleBackColor = false;
+        button.BackColor = Color.FromArgb(238, 244, 253);
+        button.Size = new Size(28, 30);
+        button.Location = location;
+        button.Padding = Padding.Empty;
+        button.Cursor = Cursors.Hand;
+        using var buttonPath = CreateRoundedRectangle(new Rectangle(0, 0, 28, 30), 10);
+        button.Region = new Region(buttonPath);
+        button.Paint += (_, eventArgs) => PaintCompactButton(eventArgs.Graphics, kind, button.ClientSize);
+    }
+
+    private void PaintCompactButton(Graphics graphics, CompactButtonKind kind, Size size)
     {
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        using var iconPath = CreateRoundedRectangle(new Rectangle(12, 13, 30, 30), 9);
-        using var iconBrush = new SolidBrush(Color.FromArgb(224, 235, 255));
-        graphics.FillPath(iconBrush, iconPath);
-        using var checkPath = CreateRoundedRectangle(new Rectangle(20, 20, 14, 16), 4);
-        using var checkBrush = new SolidBrush(Color.FromArgb(37, 99, 235));
-        graphics.FillPath(checkBrush, checkPath);
-        using var checkPen = new Pen(Color.White, 1.8f)
+        var bounds = new Rectangle(0, 0, Math.Max(size.Width - 1, 1), Math.Max(size.Height - 1, 1));
+        var active = kind is CompactButtonKind.Topmost or CompactButtonKind.Expand;
+        using var fill = new SolidBrush(active ? Color.FromArgb(239, 246, 255) : Color.FromArgb(248, 251, 255));
+        using var border = new Pen(active ? Color.FromArgb(191, 219, 254) : Color.FromArgb(203, 213, 225), 1f);
+        using var path = CreateRoundedRectangle(bounds, 10);
+        graphics.FillPath(fill, path);
+        graphics.DrawPath(border, path);
+
+        using var iconPen = new Pen(active ? Color.FromArgb(37, 99, 235) : Color.FromArgb(100, 116, 139), 1.35f)
         {
             StartCap = System.Drawing.Drawing2D.LineCap.Round,
             EndCap = System.Drawing.Drawing2D.LineCap.Round,
             LineJoin = System.Drawing.Drawing2D.LineJoin.Round,
         };
-        graphics.DrawLines(checkPen, [new Point(23, 28), new Point(25, 30), new Point(31, 24)]);
+        if (kind == CompactButtonKind.Topmost)
+        {
+            graphics.DrawLine(iconPen, new Point(14, 7), new Point(14, 22));
+            graphics.DrawLine(iconPen, new Point(10, 9), new Point(18, 9));
+            graphics.DrawLine(iconPen, new Point(11, 22), new Point(17, 22));
+        }
+        else if (kind == CompactButtonKind.Expand)
+        {
+            graphics.DrawLine(iconPen, new Point(9, 20), new Point(19, 10));
+            graphics.DrawLine(iconPen, new Point(13, 10), new Point(19, 10));
+            graphics.DrawLine(iconPen, new Point(19, 10), new Point(19, 16));
+        }
+        else
+        {
+            graphics.DrawLine(iconPen, new Point(9, 9), new Point(19, 21));
+            graphics.DrawLine(iconPen, new Point(19, 9), new Point(9, 21));
+        }
+    }
 
-        using var titleFont = new Font("Segoe UI", 9.5f, FontStyle.Bold, GraphicsUnit.Pixel);
-        using var subtitleFont = new Font("Segoe UI", 8f, FontStyle.Regular, GraphicsUnit.Pixel);
-        using var titleBrush = new SolidBrush(Color.FromArgb(15, 23, 42));
-        using var subtitleBrush = new SolidBrush(Color.FromArgb(100, 116, 139));
-        graphics.DrawString("焦点清单", titleFont, titleBrush, new PointF(50, 15));
-        graphics.DrawString("点击展开", subtitleFont, subtitleBrush, new PointF(50, 31));
+    private void PaintCompactPanel(Graphics graphics)
+    {
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using var dragBrush = new SolidBrush(Color.FromArgb(148, 163, 184));
+        using var dragPath = CreateRoundedRectangle(new Rectangle(14, 26, 20, 3), 2);
+        graphics.FillPath(dragBrush, dragPath);
     }
 
     private void ApplyCompactVisualState()

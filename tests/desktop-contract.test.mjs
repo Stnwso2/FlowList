@@ -26,6 +26,8 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /ApplyCompactVisualState/);
   assert.match(source, /_webView\.Visible = false/);
   assert.match(source, /expandedWidth = _expandedWidth/);
+  assert.match(source, /compactTopmostButton/);
+  assert.match(source, /compactCloseButton/);
 });
 
 test("web UI contains planning, history, and CRUD interactions", async () => {
@@ -41,6 +43,8 @@ test("web UI contains planning, history, and CRUD interactions", async () => {
   assert.match(page, /data-window-action="topmost"/);
   assert.match(page, /data-window-action="collapse"/);
   assert.match(page, /data-window-action="close"/);
+  assert.match(page, /button:focus \{ outline: none; \}/);
+  assert.match(page, /outline: none !important/);
   assert.match(page, /method: "POST"/);
   assert.match(page, /method: "PATCH"/);
   assert.match(page, /method: "DELETE"/);
