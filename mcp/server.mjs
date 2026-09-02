@@ -62,9 +62,9 @@ server.registerTool(
   "list_focus_tasks",
   {
     title: "列出焦点任务",
-    description: "读取今天、本周、以后、已完成或全部任务。今天包含已经逾期但尚未完成的任务。",
+    description: "读取今天、本周、以后、完成、历史或全部任务。今天包含已经逾期但尚未完成的任务；历史保留过去日期的已完成和未完成任务。",
     inputSchema: {
-      scope: z.enum(["today", "week", "later", "completed", "all"]).default("all"),
+      scope: z.enum(["today", "week", "later", "completed", "history", "all"]).default("all"),
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
   },

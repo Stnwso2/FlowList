@@ -188,13 +188,19 @@ export class FocusListStore {
     const tasks = await this.load();
     const today = localDateString(now);
     const weekEnd = endOfWeekString(now);
-    const buckets = { today: [], week: [], later: [], completed: [] };
+    const buckets = { today: [], week: [], later: [], completed: [], history: [] };
     for (const task of tasks) buckets[taskScope(task, now)].push(task);
+    // History is intentionally date-based instead of status-based: it keeps both
+    // completed records and missed tasks available after their scheduled day.
+    for (const task of tasks) {
+      if (task.dueDate && task.dueDate < today) buckets.history.push(task);
+    }
     const groups = {
       today: buckets.today,
       week: sortTasks([...buckets.today, ...buckets.week]),
       later: buckets.later,
       completed: buckets.completed,
+      history: sortTasks(buckets.history),
     };
     return {
       tasks,

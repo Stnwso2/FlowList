@@ -15,11 +15,12 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /FocusListFloatingWindow/);
 });
 
-test("web UI contains the four planning views and CRUD interactions", async () => {
+test("web UI contains planning, history, and CRUD interactions", async () => {
   const page = await readFile(path.join(ROOT, "web", "index.html"), "utf8");
-  for (const scope of ["today", "week", "later", "completed"]) {
+  for (const scope of ["today", "week", "later", "completed", "history"]) {
     assert.match(page, new RegExp(`data-scope="${scope}"`));
   }
+  assert.doesNotMatch(page, /写下一件要完成的事/);
   assert.match(page, /method: "POST"/);
   assert.match(page, /method: "PATCH"/);
   assert.match(page, /method: "DELETE"/);

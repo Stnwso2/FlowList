@@ -28,7 +28,7 @@ test("creates, updates, scopes and removes tasks", async () => {
 
     assert.equal(today.title, "Prepare weekly plan");
     const snapshot = await store.snapshot(new Date(2026, 8, 1, 12, 0));
-    assert.deepEqual(snapshot.counts, { today: 1, week: 2, later: 1, completed: 0 });
+    assert.deepEqual(snapshot.counts, { today: 1, week: 2, later: 1, completed: 0, history: 0 });
 
     const completed = await store.update(week.id, { completed: true });
     assert.equal(completed.completed, true);
@@ -36,7 +36,20 @@ test("creates, updates, scopes and removes tasks", async () => {
 
     await store.remove(later.id);
     const after = await store.snapshot(new Date(2026, 8, 1, 12, 0));
-    assert.deepEqual(after.counts, { today: 1, week: 1, later: 0, completed: 1 });
+    assert.deepEqual(after.counts, { today: 1, week: 1, later: 0, completed: 1, history: 0 });
+  });
+});
+
+test("keeps past-dated tasks in history without hiding missed work from today", async () => {
+  await withStore(async (store) => {
+    const missed = await store.create({ title: "Missed task", dueDate: "2026-08-30" });
+    const pastCompleted = await store.create({ title: "Past completed task", dueDate: "2026-08-31" });
+    await store.update(pastCompleted.id, { completed: true });
+
+    const snapshot = await store.snapshot(new Date(2026, 8, 1, 12, 0));
+    assert.deepEqual(snapshot.groups.today.map(task => task.id), [missed.id]);
+    assert.deepEqual(snapshot.groups.history.map(task => task.id).sort(), [missed.id, pastCompleted.id].sort());
+    assert.equal(snapshot.counts.history, 2);
   });
 });
 
