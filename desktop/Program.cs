@@ -168,10 +168,29 @@ internal sealed class FocusListForm : Form
     {
         if (WindowState == FormWindowState.Minimized || ClientSize.Width < 2 || ClientSize.Height < 2) return;
         EnableNativeRoundedCorners();
-        using var path = CreateRoundedRectangle(ClientRectangle, 22);
+        var regionBounds = GetRoundedRegionBounds(ClientSize);
+        using var path = CreateRoundedRectangle(regionBounds, 22);
         var previous = Region;
         Region = new Region(path);
         previous?.Dispose();
+        // WebView2 is a child HWND and can otherwise paint a rectangular layer
+        // over the form's rounded corners. Clip both child surfaces identically.
+        ApplyControlRegion(_webView, 22);
+        ApplyControlRegion(_compactPanel, 22);
+    }
+
+    private static void ApplyControlRegion(Control control, int radius)
+    {
+        if (control.ClientSize.Width < 2 || control.ClientSize.Height < 2) return;
+        using var path = CreateRoundedRectangle(GetRoundedRegionBounds(control.ClientSize), radius);
+        var previous = control.Region;
+        control.Region = new Region(path);
+        previous?.Dispose();
+    }
+
+    private static Rectangle GetRoundedRegionBounds(Size size)
+    {
+        return new Rectangle(0, 0, Math.Max(size.Width - 1, 1), Math.Max(size.Height - 1, 1));
     }
 
     private void EnableNativeRoundedCorners()
@@ -181,6 +200,8 @@ internal sealed class FocusListForm : Form
         {
             var preference = 2; // DWMWCP_ROUND
             NativeMethods.DwmSetWindowAttribute(Handle, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, ref preference, sizeof(int));
+            var borderColor = ColorTranslator.ToWin32(BackColor);
+            NativeMethods.DwmSetWindowAttribute(Handle, 34 /* DWMWA_BORDER_COLOR */, ref borderColor, sizeof(int));
         }
         catch { }
     }
@@ -513,6 +534,7 @@ internal sealed class FocusListForm : Form
         }
 
         ResumeLayout(true);
+        ApplyWindowRegion();
         SaveWindowState();
         PublishWindowState();
     }

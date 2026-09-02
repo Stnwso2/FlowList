@@ -14,7 +14,9 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /SaveWindowState/);
   assert.match(source, /FocusListFloatingWindow/);
   assert.match(source, /ApplyWindowRegion/);
-  assert.match(source, /CreateRoundedRectangle\(ClientRectangle, 22\)/);
+  assert.match(source, /CreateRoundedRectangle\(regionBounds, 22\)/);
+  assert.match(source, /ApplyControlRegion/);
+  assert.match(source, /DWMWA_BORDER_COLOR/);
   assert.match(source, /WebMessageReceived/);
   assert.match(source, /PostWebMessageAsJson/);
   assert.match(source, /BeginNativeDragFromWeb/);
