@@ -5,6 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>焦点清单</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script>
+    if (new URLSearchParams(location.search).get("compact") === "1") {
+      document.documentElement.classList.add("compact-mode");
+    }
+  </script>
   <style>
     :root {
       color-scheme: light;
@@ -174,6 +179,37 @@
       border-color: var(--danger-border);
       background: var(--danger-soft);
       color: var(--danger);
+    }
+
+    /* 缩略态仍使用同一套网页按钮，避免 Windows 原生绘制在高 DPI 下变钝。 */
+    html.compact-mode body { overflow: hidden; }
+    html.compact-mode .shell {
+      min-height: 0;
+      height: 100vh;
+      max-width: none;
+      padding: 10px 14px;
+    }
+    html.compact-mode .window-toolbar {
+      height: 100%;
+      margin: 0 2px;
+    }
+    html.compact-mode .composer,
+    html.compact-mode .tabs-wrapper,
+    html.compact-mode .timeline { display: none; }
+
+    @media (max-height: 100px) {
+      body { overflow: hidden; }
+      .shell {
+        min-height: 0;
+        height: 100vh;
+        max-width: none;
+        padding: 10px 14px;
+      }
+      .window-toolbar {
+        height: 100%;
+        margin: 0 2px;
+      }
+      .composer, .tabs-wrapper, .timeline { display: none; }
     }
 
     /* 顶部精简状态条 Top Status Bar */
@@ -1211,6 +1247,7 @@
       const topmost = Boolean(windowState?.topmost);
       topmostButton.classList.toggle("active", topmost);
       topmostButton.setAttribute("aria-pressed", String(topmost));
+      document.documentElement.classList.toggle("compact-mode", Boolean(windowState?.collapsed));
     }
 
     desktopBridge?.addEventListener("message", event => {

@@ -56,6 +56,7 @@ internal sealed class FocusListForm : Form
 {
     private const int CompactWidth = 208;
     private const int CompactHeight = 64;
+    private const int CompactActionAreaWidth = 110;
     private const int ResizeGrip = 7;
     private const int WmNcHitTest = 0x0084;
     private const int WmSysCommand = 0x0112;
@@ -73,10 +74,7 @@ internal sealed class FocusListForm : Form
     private readonly EventWaitHandle _activationEvent;
     private readonly System.Windows.Forms.Timer _activationTimer = new() { Interval = 300 };
     private readonly WebView2 _webView = new();
-    private readonly Panel _compactPanel = new();
-    private readonly Button _compactTopmostButton = new();
-    private readonly Button _compactExpandButton = new();
-    private readonly Button _compactCloseButton = new();
+    private readonly Panel _compactDragSurface = new();
     private readonly string _statePath;
     private Process? _serverProcess;
     private Uri? _serverBaseUri;
@@ -106,7 +104,7 @@ internal sealed class FocusListForm : Form
         _statePath = Path.Combine(dataDirectory, "window.json");
 
         ConfigureWebView();
-        ConfigureCompactPanel();
+        ConfigureCompactDragSurface();
         LoadWindowState();
         ApplyWindowState();
         ApplyWindowRegion();
@@ -213,122 +211,36 @@ internal sealed class FocusListForm : Form
         Controls.Add(_webView);
     }
 
-    private void ConfigureCompactPanel()
+    private void ConfigureCompactDragSurface()
     {
-        _compactPanel.Dock = DockStyle.Fill;
-        _compactPanel.BackColor = Color.FromArgb(238, 244, 253);
-        _compactPanel.Visible = false;
-        _compactPanel.Cursor = Cursors.SizeAll;
-        _compactPanel.TabStop = true;
-        _compactPanel.AccessibleName = "拖动缩略窗口";
-        _compactPanel.Paint += (_, eventArgs) => PaintCompactPanel(eventArgs.Graphics);
-        _compactPanel.MouseDown += BeginNativeDrag;
-
-        ConfigureCompactButton(_compactTopmostButton, "compactTopmostButton", "切换置顶", new Point(82, 14), CompactButtonKind.Topmost);
-        _compactTopmostButton.Click += (_, _) =>
-        {
-            TopMost = !TopMost;
-            SaveWindowState();
-            _compactTopmostButton.Invalidate();
-            PublishWindowState();
-        };
-
-        ConfigureCompactButton(_compactExpandButton, "compactExpandButton", "展开任务清单", new Point(124, 14), CompactButtonKind.Expand);
-        _compactExpandButton.Click += (_, _) => ToggleCollapsed();
-
-        ConfigureCompactButton(_compactCloseButton, "compactCloseButton", "关闭焦点清单", new Point(166, 14), CompactButtonKind.Close);
-        _compactCloseButton.Click += (_, _) => Close();
-
-        _compactPanel.Controls.Add(_compactTopmostButton);
-        _compactPanel.Controls.Add(_compactExpandButton);
-        _compactPanel.Controls.Add(_compactCloseButton);
-        Controls.Add(_compactPanel);
-        _compactPanel.BringToFront();
+        _compactDragSurface.Location = Point.Empty;
+        _compactDragSurface.Size = new Size(CompactWidth - CompactActionAreaWidth, CompactHeight);
+        _compactDragSurface.BackColor = Color.FromArgb(238, 244, 253);
+        _compactDragSurface.Visible = false;
+        _compactDragSurface.Cursor = Cursors.SizeAll;
+        _compactDragSurface.TabStop = true;
+        _compactDragSurface.AccessibleName = "拖动缩略窗口";
+        _compactDragSurface.Paint += (_, eventArgs) => PaintCompactDragSurface(eventArgs.Graphics);
+        _compactDragSurface.MouseDown += BeginNativeDrag;
+        Controls.Add(_compactDragSurface);
+        _compactDragSurface.BringToFront();
     }
 
-    private enum CompactButtonKind
-    {
-        Topmost,
-        Expand,
-        Close,
-    }
-
-    private void ConfigureCompactButton(Button button, string name, string accessibleName, Point location, CompactButtonKind kind)
-    {
-        button.Name = name;
-        button.AccessibleName = accessibleName;
-        button.Text = string.Empty;
-        button.TabStop = false;
-        button.FlatStyle = FlatStyle.Flat;
-        button.FlatAppearance.BorderSize = 0;
-        button.UseVisualStyleBackColor = false;
-        button.BackColor = Color.FromArgb(238, 244, 253);
-        button.Size = new Size(36, 36);
-        button.Location = location;
-        button.Padding = Padding.Empty;
-        button.Cursor = Cursors.Hand;
-        using var buttonPath = CreateRoundedRectangle(new Rectangle(0, 0, 36, 36), 14);
-        button.Region = new Region(buttonPath);
-        button.Paint += (_, eventArgs) => PaintCompactButton(eventArgs.Graphics, kind, button.ClientSize);
-    }
-
-    private void PaintCompactButton(Graphics graphics, CompactButtonKind kind, Size size)
-    {
-        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        var bounds = new Rectangle(0, 0, Math.Max(size.Width - 1, 1), Math.Max(size.Height - 1, 1));
-        var active = kind is CompactButtonKind.Topmost or CompactButtonKind.Expand;
-        using var fill = new SolidBrush(active ? Color.FromArgb(239, 246, 255) : Color.FromArgb(248, 251, 255));
-        using var border = new Pen(active ? Color.FromArgb(191, 219, 254) : Color.FromArgb(203, 213, 225), 1f);
-        using var path = CreateRoundedRectangle(bounds, 14);
-        graphics.FillPath(fill, path);
-        graphics.DrawPath(border, path);
-
-        using var iconPen = new Pen(active ? Color.FromArgb(37, 99, 235) : Color.FromArgb(100, 116, 139), 1.8f)
-        {
-            StartCap = System.Drawing.Drawing2D.LineCap.Round,
-            EndCap = System.Drawing.Drawing2D.LineCap.Round,
-            LineJoin = System.Drawing.Drawing2D.LineJoin.Round,
-        };
-        if (kind == CompactButtonKind.Topmost)
-        {
-            graphics.DrawLine(iconPen, new Point(18, 27), new Point(18, 9));
-            graphics.DrawLine(iconPen, new Point(12, 15), new Point(18, 9));
-            graphics.DrawLine(iconPen, new Point(24, 15), new Point(18, 9));
-            graphics.DrawLine(iconPen, new Point(11, 27), new Point(25, 27));
-        }
-        else if (kind == CompactButtonKind.Expand)
-        {
-            graphics.DrawLine(iconPen, new Point(11, 25), new Point(25, 11));
-            graphics.DrawLine(iconPen, new Point(17, 11), new Point(25, 11));
-            graphics.DrawLine(iconPen, new Point(25, 11), new Point(25, 19));
-        }
-        else
-        {
-            graphics.DrawLine(iconPen, new Point(11, 11), new Point(25, 25));
-            graphics.DrawLine(iconPen, new Point(25, 11), new Point(11, 25));
-        }
-    }
-
-    private void PaintCompactPanel(Graphics graphics)
+    private void PaintCompactDragSurface(Graphics graphics)
     {
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var dragBrush = new SolidBrush(Color.FromArgb(148, 163, 184));
-        using var dragPath = CreateRoundedRectangle(new Rectangle(16, 31, 24, 3), 2);
+        using var dragPath = CreateRoundedRectangle(new Rectangle(16, 31, 20, 3), 2);
         graphics.FillPath(dragBrush, dragPath);
     }
 
     private void ApplyCompactVisualState()
     {
-        _webView.Visible = !_collapsed;
-        _compactPanel.Visible = _collapsed;
-        if (_collapsed)
-        {
-            _compactPanel.BringToFront();
-            return;
-        }
-
+        _webView.Visible = true;
+        _compactDragSurface.Visible = _collapsed;
         _webView.BringToFront();
         _webView.Invalidate();
+        if (_collapsed) _compactDragSurface.BringToFront();
     }
 
     private async Task InitializeAsync()
@@ -349,7 +261,7 @@ internal sealed class FocusListForm : Form
             var environment = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder);
             await _webView.EnsureCoreWebView2Async(environment);
             ConfigureBrowserSecurity(_webView.CoreWebView2);
-            _webView.Source = new Uri($"{_serverBaseUri}?token={Uri.EscapeDataString(_serverToken)}");
+            _webView.Source = new Uri($"{_serverBaseUri}?token={Uri.EscapeDataString(_serverToken)}&compact={(_collapsed ? "1" : "0")}");
 
             _activationTimer.Start();
         }
@@ -508,14 +420,10 @@ internal sealed class FocusListForm : Form
             _expandedWidth = Math.Max(Width, 320);
             _expandedHeight = Math.Max(Height, 420);
             _collapsed = true;
-            // Hide WebView2 before resizing so its compositor never renders into
-            // the tiny thumbnail surface.
-            _webView.Visible = false;
-            _compactPanel.Visible = true;
             MinimumSize = new Size(CompactWidth, CompactHeight);
             Size = new Size(CompactWidth, CompactHeight);
             ApplyWindowRegion();
-            _compactPanel.BringToFront();
+            ApplyCompactVisualState();
         }
 
         ResumeLayout(true);

@@ -24,15 +24,14 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.doesNotMatch(source, /Opacity = 0\.98/);
   assert.match(source, /CompactWidth = 208/);
   assert.match(source, /CompactHeight = 64/);
-  assert.match(source, /new Size\(36, 36\)/);
-  assert.match(source, /ConfigureCompactPanel/);
-  assert.match(source, /_compactPanel\.MouseDown \+= BeginNativeDrag/);
-  assert.doesNotMatch(source, /_compactPanel\.MouseClick/);
+  assert.match(source, /CompactActionAreaWidth = 110/);
+  assert.match(source, /_compactDragSurface\.MouseDown \+= BeginNativeDrag/);
+  assert.match(source, /_compactDragSurface\.Visible = _collapsed/);
   assert.match(source, /ApplyCompactVisualState/);
-  assert.match(source, /_webView\.Visible = false/);
+  assert.match(source, /_webView\.Visible = true/);
+  assert.doesNotMatch(source, /_compactTopmostButton/);
+  assert.match(source, /&compact=\{\(_collapsed \? "1" : "0"\)\}/);
   assert.match(source, /expandedWidth = _expandedWidth/);
-  assert.match(source, /compactTopmostButton/);
-  assert.match(source, /compactCloseButton/);
 });
 
 test("web UI contains planning, history, and CRUD interactions", async () => {
@@ -41,6 +40,10 @@ test("web UI contains planning, history, and CRUD interactions", async () => {
     assert.match(page, new RegExp(`data-scope="${scope}"`));
   }
   assert.doesNotMatch(page, /写下一件要完成的事/);
+  assert.match(page, /document\.documentElement\.classList\.add\("compact-mode"\)/);
+  assert.match(page, /html\.compact-mode \.composer/);
+  assert.match(page, /@media \(max-height: 100px\)/);
+  assert.match(page, /\.composer, \.tabs-wrapper, \.timeline \{ display: none; \}/);
   assert.doesNotMatch(page, /Today&#39;s focus|Today's focus/);
   assert.match(page, /priority-picker/);
   assert.doesNotMatch(page, /<select/);
@@ -55,6 +58,6 @@ test("web UI contains planning, history, and CRUD interactions", async () => {
   assert.match(page, /method: "DELETE"/);
   assert.match(page, /X-Focus-List-Token/);
   const scripts = [...page.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(match => match[1]);
-  assert.equal(scripts.length, 1);
-  assert.doesNotThrow(() => new Function(scripts[0]));
+  assert.equal(scripts.length, 2);
+  for (const script of scripts) assert.doesNotThrow(() => new Function(script));
 });
