@@ -111,7 +111,11 @@ internal sealed class FocusListForm : Form
         ApplyWindowState();
         ApplyWindowRegion();
 
-        HandleCreated += (_, _) => Program.Log($"Form.HandleCreated: {Handle}");
+        HandleCreated += (_, _) =>
+        {
+            Program.Log($"Form.HandleCreated: {Handle}");
+            ApplyWindowRegion();
+        };
         HandleDestroyed += (_, _) => Program.Log($"Form.HandleDestroyed");
         _webView.HandleCreated += (_, _) => Program.Log($"_webView.HandleCreated: {_webView.Handle}");
         _webView.HandleDestroyed += (_, _) => Program.Log($"_webView.HandleDestroyed");
@@ -168,29 +172,11 @@ internal sealed class FocusListForm : Form
     {
         if (WindowState == FormWindowState.Minimized || ClientSize.Width < 2 || ClientSize.Height < 2) return;
         EnableNativeRoundedCorners();
-        var regionBounds = GetRoundedRegionBounds(ClientSize);
-        using var path = CreateRoundedRectangle(regionBounds, 22);
         var previous = Region;
-        Region = new Region(path);
+        // Let DWM perform the anti-aliased outer rounding. A Win32 Region is
+        // hard-edged and leaves light square wedges at the four corners.
+        Region = null;
         previous?.Dispose();
-        // WebView2 is a child HWND and can otherwise paint a rectangular layer
-        // over the form's rounded corners. Clip both child surfaces identically.
-        ApplyControlRegion(_webView, 22);
-        ApplyControlRegion(_compactPanel, 22);
-    }
-
-    private static void ApplyControlRegion(Control control, int radius)
-    {
-        if (control.ClientSize.Width < 2 || control.ClientSize.Height < 2) return;
-        using var path = CreateRoundedRectangle(GetRoundedRegionBounds(control.ClientSize), radius);
-        var previous = control.Region;
-        control.Region = new Region(path);
-        previous?.Dispose();
-    }
-
-    private static Rectangle GetRoundedRegionBounds(Size size)
-    {
-        return new Rectangle(0, 0, Math.Max(size.Width - 1, 1), Math.Max(size.Height - 1, 1));
     }
 
     private void EnableNativeRoundedCorners()
@@ -283,7 +269,7 @@ internal sealed class FocusListForm : Form
         button.Location = location;
         button.Padding = Padding.Empty;
         button.Cursor = Cursors.Hand;
-        using var buttonPath = CreateRoundedRectangle(new Rectangle(0, 0, 28, 30), 10);
+        using var buttonPath = CreateRoundedRectangle(new Rectangle(0, 0, 28, 30), 12);
         button.Region = new Region(buttonPath);
         button.Paint += (_, eventArgs) => PaintCompactButton(eventArgs.Graphics, kind, button.ClientSize);
     }
@@ -295,7 +281,7 @@ internal sealed class FocusListForm : Form
         var active = kind is CompactButtonKind.Topmost or CompactButtonKind.Expand;
         using var fill = new SolidBrush(active ? Color.FromArgb(239, 246, 255) : Color.FromArgb(248, 251, 255));
         using var border = new Pen(active ? Color.FromArgb(191, 219, 254) : Color.FromArgb(203, 213, 225), 1f);
-        using var path = CreateRoundedRectangle(bounds, 10);
+        using var path = CreateRoundedRectangle(bounds, 12);
         graphics.FillPath(fill, path);
         graphics.DrawPath(border, path);
 
@@ -307,9 +293,10 @@ internal sealed class FocusListForm : Form
         };
         if (kind == CompactButtonKind.Topmost)
         {
-            graphics.DrawLine(iconPen, new Point(14, 7), new Point(14, 22));
-            graphics.DrawLine(iconPen, new Point(10, 9), new Point(18, 9));
-            graphics.DrawLine(iconPen, new Point(11, 22), new Point(17, 22));
+            graphics.DrawLine(iconPen, new Point(14, 22), new Point(14, 8));
+            graphics.DrawLine(iconPen, new Point(9, 13), new Point(14, 8));
+            graphics.DrawLine(iconPen, new Point(19, 13), new Point(14, 8));
+            graphics.DrawLine(iconPen, new Point(8, 22), new Point(20, 22));
         }
         else if (kind == CompactButtonKind.Expand)
         {
