@@ -18,7 +18,14 @@ test("desktop host exposes the required floating-window controls", async () => {
   assert.match(source, /WebMessageReceived/);
   assert.match(source, /PostWebMessageAsJson/);
   assert.match(source, /BeginNativeDragFromWeb/);
-  assert.match(source, /Opacity = 0\.98/);
+  assert.match(source, /DefaultBackgroundColor = Color\.FromArgb\(238, 244, 253\)/);
+  assert.doesNotMatch(source, /Opacity = 0\.98/);
+  assert.match(source, /CompactWidth = 176/);
+  assert.match(source, /CompactHeight = 56/);
+  assert.match(source, /ConfigureCompactPanel/);
+  assert.match(source, /ApplyCompactVisualState/);
+  assert.match(source, /_webView\.Visible = false/);
+  assert.match(source, /expandedWidth = _expandedWidth/);
 });
 
 test("web UI contains planning, history, and CRUD interactions", async () => {

@@ -54,10 +54,12 @@ internal static class Program
 
 internal sealed class FocusListForm : Form
 {
-    private const int CollapsedHeight = 48;
+    private const int CompactWidth = 176;
+    private const int CompactHeight = 56;
     private const int ResizeGrip = 7;
     private const int WmNcHitTest = 0x0084;
-    private const int WmNcLButtonDown = 0x00A1;
+    private const int WmSysCommand = 0x0112;
+    private const int ScDragMove = 0xF012;
     private const int HtCaption = 0x0002;
     private const int HtLeft = 10;
     private const int HtRight = 11;
@@ -71,12 +73,15 @@ internal sealed class FocusListForm : Form
     private readonly EventWaitHandle _activationEvent;
     private readonly System.Windows.Forms.Timer _activationTimer = new() { Interval = 300 };
     private readonly WebView2 _webView = new();
+    private readonly Panel _compactPanel = new();
+    private readonly Button _compactExpandButton = new();
     private readonly string _statePath;
     private Process? _serverProcess;
     private Uri? _serverBaseUri;
     private string? _serverToken;
     private bool _collapsed;
     private bool _closing;
+    private int _expandedWidth = 380;
     private int _expandedHeight = 640;
 
     internal FocusListForm(EventWaitHandle activationEvent)
@@ -89,7 +94,6 @@ internal sealed class FocusListForm : Form
         ShowInTaskbar = true;
         TopMost = true;
         BackColor = Color.FromArgb(238, 244, 253);
-        Opacity = 0.98;
         MinimumSize = new Size(320, 420);
         Size = new Size(380, 640);
 
@@ -100,6 +104,7 @@ internal sealed class FocusListForm : Form
         _statePath = Path.Combine(dataDirectory, "window.json");
 
         ConfigureWebView();
+        ConfigureCompactPanel();
         LoadWindowState();
         ApplyWindowState();
         ApplyWindowRegion();
@@ -112,7 +117,14 @@ internal sealed class FocusListForm : Form
         _activationTimer.Tick += (_, _) => ActivateIfRequested();
         Move += (_, _) => SaveWindowState();
         ResizeEnd += (_, _) => SaveWindowState();
-        Resize += (_, _) => ApplyWindowRegion();
+        Resize += (_, _) =>
+        {
+            if (WindowState != FormWindowState.Minimized)
+            {
+                ApplyWindowRegion();
+                _webView.Invalidate();
+            }
+        };
         FormClosing += OnFormClosing;
         Shown += (_, _) => _ = InitializeAsync();
     }
@@ -152,11 +164,23 @@ internal sealed class FocusListForm : Form
 
     private void ApplyWindowRegion()
     {
-        if (ClientSize.Width < 2 || ClientSize.Height < 2) return;
+        if (WindowState == FormWindowState.Minimized || ClientSize.Width < 2 || ClientSize.Height < 2) return;
+        EnableNativeRoundedCorners();
         using var path = CreateRoundedRectangle(ClientRectangle, 22);
         var previous = Region;
         Region = new Region(path);
         previous?.Dispose();
+    }
+
+    private void EnableNativeRoundedCorners()
+    {
+        if (!IsHandleCreated) return;
+        try
+        {
+            var preference = 2; // DWMWCP_ROUND
+            NativeMethods.DwmSetWindowAttribute(Handle, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, ref preference, sizeof(int));
+        }
+        catch { }
     }
 
     private static System.Drawing.Drawing2D.GraphicsPath CreateRoundedRectangle(Rectangle bounds, int radius)
@@ -173,12 +197,82 @@ internal sealed class FocusListForm : Form
 
     private void ConfigureWebView()
     {
-        _webView.Dock = DockStyle.None;
+        _webView.Dock = DockStyle.Fill;
         _webView.Location = Point.Empty;
         _webView.Size = ClientSize;
-        _webView.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         _webView.DefaultBackgroundColor = Color.FromArgb(238, 244, 253);
         Controls.Add(_webView);
+    }
+
+    private void ConfigureCompactPanel()
+    {
+        _compactPanel.Dock = DockStyle.Fill;
+        _compactPanel.BackColor = Color.FromArgb(245, 248, 253);
+        _compactPanel.Visible = false;
+        _compactPanel.Cursor = Cursors.Hand;
+        _compactPanel.Paint += (_, eventArgs) => PaintCompactPanel(eventArgs.Graphics);
+        _compactPanel.MouseClick += (_, eventArgs) =>
+        {
+            if (eventArgs.Button == MouseButtons.Left) ToggleCollapsed();
+        };
+
+        _compactExpandButton.Name = "compactExpandButton";
+        _compactExpandButton.AccessibleName = "展开任务清单";
+        _compactExpandButton.Text = "↗";
+        _compactExpandButton.TabStop = true;
+        _compactExpandButton.FlatStyle = FlatStyle.Flat;
+        _compactExpandButton.FlatAppearance.BorderSize = 0;
+        _compactExpandButton.UseVisualStyleBackColor = false;
+        _compactExpandButton.BackColor = Color.FromArgb(232, 240, 255);
+        _compactExpandButton.ForeColor = Color.FromArgb(37, 99, 235);
+        _compactExpandButton.Font = new Font("Segoe UI", 14, FontStyle.Regular, GraphicsUnit.Pixel);
+        _compactExpandButton.Size = new Size(34, 34);
+        _compactExpandButton.Location = new Point(130, 11);
+        _compactExpandButton.Cursor = Cursors.Hand;
+        _compactExpandButton.Click += (_, _) => ToggleCollapsed();
+
+        _compactPanel.Controls.Add(_compactExpandButton);
+        Controls.Add(_compactPanel);
+        _compactPanel.BringToFront();
+    }
+
+    private void PaintCompactPanel(Graphics graphics)
+    {
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using var iconPath = CreateRoundedRectangle(new Rectangle(12, 13, 30, 30), 9);
+        using var iconBrush = new SolidBrush(Color.FromArgb(224, 235, 255));
+        graphics.FillPath(iconBrush, iconPath);
+        using var checkPath = CreateRoundedRectangle(new Rectangle(20, 20, 14, 16), 4);
+        using var checkBrush = new SolidBrush(Color.FromArgb(37, 99, 235));
+        graphics.FillPath(checkBrush, checkPath);
+        using var checkPen = new Pen(Color.White, 1.8f)
+        {
+            StartCap = System.Drawing.Drawing2D.LineCap.Round,
+            EndCap = System.Drawing.Drawing2D.LineCap.Round,
+            LineJoin = System.Drawing.Drawing2D.LineJoin.Round,
+        };
+        graphics.DrawLines(checkPen, [new Point(23, 28), new Point(25, 30), new Point(31, 24)]);
+
+        using var titleFont = new Font("Segoe UI", 9.5f, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var subtitleFont = new Font("Segoe UI", 8f, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var titleBrush = new SolidBrush(Color.FromArgb(15, 23, 42));
+        using var subtitleBrush = new SolidBrush(Color.FromArgb(100, 116, 139));
+        graphics.DrawString("焦点清单", titleFont, titleBrush, new PointF(50, 15));
+        graphics.DrawString("点击展开", subtitleFont, subtitleBrush, new PointF(50, 31));
+    }
+
+    private void ApplyCompactVisualState()
+    {
+        _webView.Visible = !_collapsed;
+        _compactPanel.Visible = _collapsed;
+        if (_collapsed)
+        {
+            _compactPanel.BringToFront();
+            return;
+        }
+
+        _webView.BringToFront();
+        _webView.Invalidate();
     }
 
     private async Task InitializeAsync()
@@ -331,46 +425,58 @@ internal sealed class FocusListForm : Form
     {
         if (eventArgs.Button != MouseButtons.Left) return;
         NativeMethods.ReleaseCapture();
-        NativeMethods.SendMessage(Handle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
+        NativeMethods.SendMessage(Handle, WmSysCommand, (IntPtr)ScDragMove, IntPtr.Zero);
         SaveWindowState();
     }
 
-    private void BeginNativeDragFromWeb(int screenX, int screenY)
+    private void BeginNativeDragFromWeb(int screenX = 0, int screenY = 0)
     {
-        if (screenX != 0 || screenY != 0) NativeMethods.SetCursorPos(screenX, screenY);
         NativeMethods.ReleaseCapture();
-        NativeMethods.SendMessage(Handle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
+        NativeMethods.SendMessage(Handle, WmSysCommand, (IntPtr)ScDragMove, IntPtr.Zero);
         SaveWindowState();
     }
 
     private void ToggleCollapsed()
     {
+        SuspendLayout();
         if (_collapsed)
         {
             _collapsed = false;
-            Height = Math.Max(_expandedHeight, 420);
             MinimumSize = new Size(320, 420);
+            Size = new Size(Math.Max(_expandedWidth, 320), Math.Max(_expandedHeight, 420));
+            ApplyWindowRegion();
+            ApplyCompactVisualState();
         }
         else
         {
+            _expandedWidth = Math.Max(Width, 320);
             _expandedHeight = Math.Max(Height, 420);
             _collapsed = true;
-            MinimumSize = new Size(220, CollapsedHeight);
-            Height = CollapsedHeight;
+            // Hide WebView2 before resizing so its compositor never renders into
+            // the tiny thumbnail surface.
+            _webView.Visible = false;
+            _compactPanel.Visible = true;
+            MinimumSize = new Size(CompactWidth, CompactHeight);
+            Size = new Size(CompactWidth, CompactHeight);
+            ApplyWindowRegion();
+            _compactPanel.BringToFront();
         }
+
+        ResumeLayout(true);
         SaveWindowState();
         PublishWindowState();
     }
 
     private void ApplyWindowState()
     {
-        PublishWindowState();
         if (_collapsed)
         {
-            MinimumSize = new Size(220, CollapsedHeight);
-            Height = CollapsedHeight;
+            MinimumSize = new Size(CompactWidth, CompactHeight);
+            Size = new Size(CompactWidth, CompactHeight);
         }
+        PublishWindowState();
         Location = ClampToVisibleScreen(Location, Size);
+        ApplyCompactVisualState();
     }
 
     private void ActivateIfRequested()
@@ -380,6 +486,8 @@ internal sealed class FocusListForm : Form
         Show();
         BringToFront();
         Activate();
+        _webView.Invalidate();
+        PublishWindowState();
     }
 
     private void LoadWindowState()
@@ -401,6 +509,9 @@ internal sealed class FocusListForm : Form
             var y = root.TryGetProperty("y", out var yElement) ? yElement.GetInt32() : Top;
             TopMost = !root.TryGetProperty("topMost", out var topMostElement) || topMostElement.GetBoolean();
             _collapsed = root.TryGetProperty("collapsed", out var collapsedElement) && collapsedElement.GetBoolean();
+            _expandedWidth = root.TryGetProperty("expandedWidth", out var expandedWidthElement)
+                ? Math.Max(320, expandedWidthElement.GetInt32())
+                : Math.Max(320, width);
             _expandedHeight = root.TryGetProperty("expandedHeight", out var expandedHeightElement)
                 ? Math.Max(420, expandedHeightElement.GetInt32())
                 : Math.Max(420, height);
@@ -416,16 +527,21 @@ internal sealed class FocusListForm : Form
 
     private void SaveWindowState()
     {
-        if (_closing || WindowState == FormWindowState.Minimized) return;
+        if (_closing) return;
         try
         {
-            if (!_collapsed) _expandedHeight = Math.Max(Height, 420);
+            if (!_collapsed)
+            {
+                _expandedWidth = Math.Max(Width, 320);
+                _expandedHeight = Math.Max(Height, 420);
+            }
             var payload = JsonSerializer.Serialize(new
             {
                 x = Left,
                 y = Top,
-                width = Width,
+                width = _collapsed ? _expandedWidth : Width,
                 height = _collapsed ? _expandedHeight : Height,
+                expandedWidth = _expandedWidth,
                 expandedHeight = _expandedHeight,
                 topMost = TopMost,
                 collapsed = _collapsed,
@@ -505,7 +621,6 @@ internal static partial class NativeMethods
     [LibraryImport("user32.dll", EntryPoint = "SendMessageW")]
     internal static partial IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
 
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    internal static partial bool SetCursorPos(int x, int y);
+    [LibraryImport("dwmapi.dll")]
+    internal static partial int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 }
