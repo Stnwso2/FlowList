@@ -36,14 +36,14 @@ const server = new McpServer(
   { name: "focus-list", version: "0.1.0" },
   {
     instructions:
-      "这是同一份本地任务数据的 Codex 接口和 Windows 悬浮清单。需要展示清单时先调用 open_focus_list；新增任务默认归入今天，除非用户明确给出其他日期。删除任务前确认目标。",
+      "这是 Stnwso2‘s FlowList 的 Codex 接口和 Windows 悬浮清单，与桌面窗口共用同一份本地任务数据。需要展示清单时先调用 open_focus_list；新增任务默认归入今天，除非用户明确给出其他日期。删除任务前确认目标。",
   },
 );
 
 server.registerTool(
   "open_focus_list",
   {
-    title: "打开焦点清单悬浮窗",
+    title: "打开 Stnwso2‘s FlowList 悬浮窗",
     description: "打开或唤醒可拖动、可收拢并能切换置顶层级的 Windows 任务清单。",
     inputSchema: {},
     annotations: { readOnlyHint: true, openWorldHint: false },

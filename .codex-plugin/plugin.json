@@ -1,9 +1,9 @@
 {
   "name": "focus-list",
-  "version": "0.1.0+codex.20260902110831",
-  "description": "Local-first floating task list with planning and date-based history.",
+  "version": "0.1.0+codex.20260904070728",
+  "description": "Stnwso2's local-first floating task list with planning and date-based history.",
   "author": {
-    "name": "Personal"
+    "name": "Stnwso2"
   },
   "keywords": [
     "tasks",
@@ -13,10 +13,10 @@
     "local-first"
   ],
   "interface": {
-    "displayName": "\u7126\u70b9\u6e05\u5355",
+    "displayName": "Stnwso2\u2018s FlowList",
     "shortDescription": "\u7f6e\u9876\u663e\u793a\u8ba1\u5212\u4e0e\u5386\u53f2\u4efb\u52a1\u7684\u672c\u5730\u60ac\u6d6e\u6e05\u5355\u3002",
     "longDescription": "\u4e00\u4e2a\u4e0d\u4f9d\u8d56\u8d26\u53f7\u6216\u4e91\u670d\u52a1\u7684 Windows \u60ac\u6d6e\u4efb\u52a1\u6e05\u5355\u3002\u652f\u6301\u4eca\u5929\u3001\u672c\u5468\u3001\u4ee5\u540e\u3001\u5b8c\u6210\u548c\u5386\u53f2\u89c6\u56fe\uff1b\u5386\u53f2\u6309\u65e5\u671f\u4fdd\u7559\u5df2\u5b8c\u6210\u4e0e\u672a\u5b8c\u6210\u7684\u65e7\u4efb\u52a1\uff0c\u5e76\u5141\u8bb8 Codex \u8bfb\u53d6\u3001\u65b0\u589e\u548c\u6574\u7406\u540c\u4e00\u4efd\u672c\u5730\u4efb\u52a1\u6570\u636e\u3002",
-    "developerName": "Personal",
+    "developerName": "Stnwso2",
     "category": "Productivity",
     "capabilities": [
       "Interactive",
@@ -24,7 +24,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "\u6253\u5f00\u7126\u70b9\u6e05\u5355\u60ac\u6d6e\u7a97\u3002",
+      "\u6253\u5f00 Stnwso2\u2018s FlowList \u60ac\u6d6e\u7a97\u3002",
       "\u5217\u51fa\u4eca\u5929\u548c\u672c\u5468\u8fd8\u6ca1\u5b8c\u6210\u7684\u4efb\u52a1\u3002",
       "\u628a\u6211\u521a\u624d\u8bf4\u7684\u4e8b\u9879\u52a0\u5165\u672c\u5468\u4efb\u52a1\u3002"
     ],

@@ -4,6 +4,23 @@ import path from "node:path";
 import test from "node:test";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
+const BRAND = "Stnwso2‘s FlowList";
+
+test("public surfaces use the FlowList brand without breaking legacy plugin identity", async () => {
+  const [manifestText, desktop, page, readme] = await Promise.all([
+    readFile(path.join(ROOT, ".codex-plugin", "plugin.json"), "utf8"),
+    readFile(path.join(ROOT, "desktop", "Program.cs"), "utf8"),
+    readFile(path.join(ROOT, "web", "index.html"), "utf8"),
+    readFile(path.join(ROOT, "README.md"), "utf8"),
+  ]);
+  const manifest = JSON.parse(manifestText);
+  assert.equal(manifest.name, "focus-list");
+  assert.equal(manifest.interface.displayName, BRAND);
+  assert.equal(manifest.interface.developerName, "Stnwso2");
+  assert.match(desktop, new RegExp(BRAND));
+  assert.match(page, new RegExp(`<title>${BRAND}</title>`));
+  assert.match(readme, new RegExp(`^# ${BRAND}`, "m"));
+});
 
 test("desktop host exposes the required floating-window controls", async () => {
   const source = await readFile(path.join(ROOT, "desktop", "Program.cs"), "utf8");

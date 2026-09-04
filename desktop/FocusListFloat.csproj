@@ -8,6 +8,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>FocusListFloat</RootNamespace>
     <AssemblyName>FocusListFloat</AssemblyName>
+    <AssemblyTitle>Stnwso2‘s FlowList</AssemblyTitle>
+    <Product>Stnwso2‘s FlowList</Product>
+    <Authors>Stnwso2</Authors>
     <Version>0.1.0</Version>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <ApplicationIcon>..\assets\focus-list.ico</ApplicationIcon>

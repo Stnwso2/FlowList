@@ -87,7 +87,7 @@ internal sealed class FocusListForm : Form
     internal FocusListForm(EventWaitHandle activationEvent)
     {
         _activationEvent = activationEvent;
-        Text = "焦点清单";
+        Text = "Stnwso2‘s FlowList";
         Icon = CreateAppIcon();
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
@@ -126,6 +126,7 @@ internal sealed class FocusListForm : Form
             if (WindowState != FormWindowState.Minimized)
             {
                 ApplyWindowRegion();
+                if (_collapsed) UpdateCompactDragSurfaceBounds();
                 _webView.Invalidate();
             }
         };
@@ -226,11 +227,25 @@ internal sealed class FocusListForm : Form
         _compactDragSurface.BringToFront();
     }
 
+    private void UpdateCompactDragSurfaceBounds()
+    {
+        if (!_collapsed || !IsHandleCreated || IsDisposed) return;
+        var actionAreaWidth = (int)Math.Ceiling(CompactActionAreaWidth * (double)DeviceDpi / 96.0);
+        var dragWidth = Math.Max(0, ClientSize.Width - actionAreaWidth);
+        _compactDragSurface.Location = Point.Empty;
+        _compactDragSurface.Size = new Size(dragWidth, ClientSize.Height);
+    }
+
     private void PaintCompactDragSurface(Graphics graphics)
     {
         graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         using var dragBrush = new SolidBrush(Color.FromArgb(148, 163, 184));
-        using var dragPath = CreateRoundedRectangle(new Rectangle(16, 31, 20, 3), 2);
+        var dpiScale = (double)DeviceDpi / 96.0;
+        var x = (int)Math.Round(16.0 * dpiScale);
+        var y = (int)Math.Round(22.5 * dpiScale);
+        var width = (int)Math.Round(20.0 * dpiScale);
+        var height = (int)Math.Max(3, Math.Round(3.0 * dpiScale));
+        using var dragPath = CreateRoundedRectangle(new Rectangle(x, y, width, height), 2);
         graphics.FillPath(dragBrush, dragPath);
     }
 
@@ -238,9 +253,9 @@ internal sealed class FocusListForm : Form
     {
         _webView.Visible = true;
         _compactDragSurface.Visible = _collapsed;
+        UpdateCompactDragSurfaceBounds();
         _webView.BringToFront();
         _webView.Invalidate();
-        if (_collapsed) _compactDragSurface.BringToFront();
     }
 
     private async Task InitializeAsync()
@@ -268,11 +283,11 @@ internal sealed class FocusListForm : Form
         catch (Exception error)
         {
             Program.Log($"InitializeAsync error: {error}");
-            Text = "焦点清单 · 启动失败";
+            Text = "Stnwso2‘s FlowList · 启动失败";
             MessageBox.Show(
                 this,
-                $"焦点清单无法启动：\n{error.Message}",
-                "焦点清单",
+                $"Stnwso2‘s FlowList 无法启动：\n{error.Message}",
+                "Stnwso2‘s FlowList",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -421,7 +436,7 @@ internal sealed class FocusListForm : Form
             _expandedHeight = Math.Max(Height, 420);
             _collapsed = true;
             MinimumSize = new Size(CompactWidth, CompactHeight);
-            Size = new Size(CompactWidth, CompactHeight);
+            Size = new Size(_expandedWidth, CompactHeight);
             ApplyWindowRegion();
             ApplyCompactVisualState();
         }
@@ -437,7 +452,7 @@ internal sealed class FocusListForm : Form
         if (_collapsed)
         {
             MinimumSize = new Size(CompactWidth, CompactHeight);
-            Size = new Size(CompactWidth, CompactHeight);
+            Size = new Size(_expandedWidth, CompactHeight);
         }
         PublishWindowState();
         Location = ClampToVisibleScreen(Location, Size);

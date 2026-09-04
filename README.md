@@ -1,6 +1,8 @@
-# Focus List / 焦点清单
+# Stnwso2‘s FlowList
 
-一个本地优先的 Windows 悬浮任务清单和 Codex 个人插件。
+一个由 Stnwso2 维护的本地优先 Windows 悬浮任务清单和 Codex 个人插件。
+
+> 兼容说明：内部插件 ID、MCP 工具名和 `%LOCALAPPDATA%\FocusList` 数据目录继续沿用 `focus-list`，以保留已安装配置和现有任务数据。
 
 ## 初版范围
 
